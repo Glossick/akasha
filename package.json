@@ -1,0 +1,35 @@
+{
+  "name": "semantic-map",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run index.ts",
+    "frontend:dev": "bun --bun run frontend/src/main.tsx",
+    "seed:data": "bun run backend/src/scripts/sample-data.ts",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "dependencies": {
+    "@elysiajs/static": "^1.4.6",
+    "elysia": "^1.1.0",
+    "graphql": "^16.12.0",
+    "graphql-yoga": "^5.16.1",
+    "neo4j-driver": "^6.0.1",
+    "openai": "^6.8.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-force-graph-2d": "^1.26.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.33.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
