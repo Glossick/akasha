@@ -81,6 +81,21 @@ export interface AkashaConfig {
 }
 
 /**
+ * Configuration validation result
+ */
+export interface ConfigValidationResult {
+  valid: boolean;
+  errors: Array<{
+    field: string;
+    message: string;
+  }>;
+  warnings?: Array<{
+    field: string;
+    message: string;
+  }>;
+}
+
+/**
  * Query strategy for ask() method
  */
 export type QueryStrategy = 'documents' | 'entities' | 'both';
@@ -94,6 +109,9 @@ export interface QueryOptions {
   contexts?: string[]; // Context IDs to filter by
   includeEmbeddings?: boolean; // Include embeddings in returned entities/relationships (default: false)
   strategy?: QueryStrategy; // Query strategy: 'documents', 'entities', or 'both' (default: 'both')
+  validAt?: Date | string; // Only return facts valid at this time (default: all facts)
+  includeStats?: boolean; // Include query statistics in response (default: false)
+  similarityThreshold?: number; // Minimum similarity score for documents/entities (default: 0.7). Higher values = more strict filtering.
 }
 
 /**
@@ -117,6 +135,7 @@ export interface GraphRAGResponse {
     summary: string;
   };
   answer: string;
+  statistics?: QueryStatistics; // Included when includeStats: true in QueryOptions
 }
 
 /**
@@ -131,6 +150,11 @@ export interface Document {
     contextIds?: string[]; // Array of context IDs this document belongs to
     contextId?: string; // DEPRECATED: Use contextIds instead (for backward compatibility)
     metadata?: Record<string, unknown>;
+    _similarity?: number; // Similarity score from vector search (added at runtime)
+    _recordedAt?: string; // System metadata
+    _validFrom?: string; // System metadata
+    _validTo?: string; // System metadata
+    embedding?: number[]; // Vector embedding (optional, scrubbed by default)
   };
 }
 
@@ -179,4 +203,158 @@ export interface LearnOptions {
   contextName?: string;
   contextId?: string;
   includeEmbeddings?: boolean; // Include embeddings in returned entities/relationships (default: false)
+  validFrom?: Date | string; // When fact becomes valid (default: now, when learn() is called)
+  validTo?: Date | string; // When fact becomes invalid (default: null = ongoing)
+}
+
+/**
+ * Batch progress information
+ */
+export interface BatchProgress {
+  current: number; // Current item index (0-based)
+  total: number; // Total items
+  completed: number; // Successfully completed
+  failed: number; // Failed so far
+  currentText?: string; // Current item text (truncated if long)
+  estimatedTimeRemainingMs?: number; // Estimated time remaining in milliseconds
+}
+
+/**
+ * Batch progress callback function
+ */
+export type BatchProgressCallback = (progress: BatchProgress) => void | Promise<void>;
+
+/**
+ * Batch learn options
+ */
+export interface BatchLearnOptions extends Omit<LearnOptions, 'contextId'> {
+  contextName?: string; // Shared context name for all texts (optional)
+  // Each text can have its own contextId via BatchLearnItem
+  onProgress?: BatchProgressCallback; // Progress callback (called after each item)
+}
+
+/**
+ * Individual item in batch learn operation
+ */
+export interface BatchLearnItem {
+  text: string;
+  contextId?: string; // Optional per-item context ID
+  contextName?: string; // Optional per-item context name
+  validFrom?: Date | string;
+  validTo?: Date | string;
+}
+
+/**
+ * Batch learn result
+ */
+export interface BatchLearnResult {
+  results: ExtractResult[];
+  summary: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    totalDocumentsCreated: number;
+    totalDocumentsReused: number;
+    totalEntitiesCreated: number;
+    totalRelationshipsCreated: number;
+  };
+  errors?: Array<{
+    index: number;
+    text: string;
+    error: string;
+  }>;
+}
+
+/**
+ * Health check status
+ */
+export interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  neo4j: {
+    connected: boolean;
+    error?: string;
+  };
+  openai: {
+    available: boolean;
+    error?: string;
+  };
+  timestamp: string;
+}
+
+/**
+ * Query statistics
+ */
+export interface QueryStatistics {
+  searchTimeMs: number;
+  subgraphRetrievalTimeMs: number;
+  llmGenerationTimeMs: number;
+  totalTimeMs: number;
+  documentsFound: number;
+  entitiesFound: number;
+  relationshipsFound: number;
+  strategy: QueryStrategy;
+}
+
+/**
+ * Delete operation result
+ */
+export interface DeleteResult {
+  deleted: boolean;
+  message: string;
+  relatedRelationshipsDeleted?: number; // For entity/document deletion (cascade relationships)
+}
+
+/**
+ * Update entity options
+ */
+export interface UpdateEntityOptions {
+  properties?: Record<string, unknown>;
+  // Note: Can't change label (would require node recreation)
+}
+
+/**
+ * Update relationship options
+ */
+export interface UpdateRelationshipOptions {
+  properties?: Record<string, unknown>;
+  // Note: Can't change type, from, to (would require deletion + recreation)
+}
+
+/**
+ * Update document options
+ */
+export interface UpdateDocumentOptions {
+  properties?: Record<string, unknown>;
+  // Note: Can't change text (would break deduplication)
+}
+
+/**
+ * List entities options
+ */
+export interface ListEntitiesOptions {
+  label?: string; // Filter by entity label
+  limit?: number; // Default: 100
+  offset?: number; // Default: 0
+  includeEmbeddings?: boolean; // Default: false
+}
+
+/**
+ * List relationships options
+ */
+export interface ListRelationshipsOptions {
+  type?: string; // Filter by relationship type
+  fromId?: string; // Filter by source entity ID
+  toId?: string; // Filter by target entity ID
+  limit?: number; // Default: 100
+  offset?: number; // Default: 0
+  includeEmbeddings?: boolean; // Default: false
+}
+
+/**
+ * List documents options
+ */
+export interface ListDocumentsOptions {
+  limit?: number; // Default: 100
+  offset?: number; // Default: 0
+  includeEmbeddings?: boolean; // Default: false
 }

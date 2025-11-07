@@ -1,10 +1,26 @@
 {
-  "name": "akasha",
+  "name": "@glossick/akasha",
   "version": "0.1.0",
   "description": "A minimal, developer-friendly GraphRAG library with multi-tenant support",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs"
+  ],
   "scripts": {
+    "build": "tsc && node scripts/fix-esm-imports.js",
+    "prepublishOnly": "npm run build",
     "test": "bun test",
     "test:integration": "bun test src/__tests__/integration",
     "test:unit": "bun test src/__tests__ --exclude integration",
@@ -18,16 +34,24 @@
     "neo4j",
     "llm",
     "rag",
-    "multi-tenant"
+    "multi-tenant",
+    "graph-database",
+    "semantic-search",
+    "vector-search"
   ],
-  "author": "",
-  "license": "MIT",
+  "author": "Glossick",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Glossick/akasha.git"
+  },
   "dependencies": {
     "neo4j-driver": "^6.0.1",
     "openai": "^6.8.1"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/node": "^20.0.0",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {

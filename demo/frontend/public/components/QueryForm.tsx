@@ -13,6 +13,7 @@ function QueryForm({ onSubmit, isLoading }: QueryFormProps) {
   const [strategy, setStrategy] = useState<QueryStrategy>('both');
   const [includeEmbeddings, setIncludeEmbeddings] = useState<boolean>(false);
   const [validAt, setValidAt] = useState<string>('');
+  const [includeStats, setIncludeStats] = useState<boolean>(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +27,7 @@ function QueryForm({ onSubmit, isLoading }: QueryFormProps) {
       strategy,
       includeEmbeddings,
       validAt: validAt ? validAt : undefined,
+      includeStats,
     });
   };
 
@@ -112,18 +114,36 @@ function QueryForm({ onSubmit, isLoading }: QueryFormProps) {
         </div>
       </div>
 
-      <div className="form-group">
-        <label htmlFor="validAt">Valid At (Temporal Filter)</label>
-        <input
-          id="validAt"
-          type="datetime-local"
-          value={validAt}
-          onChange={(e) => setValidAt(e.target.value)}
-          disabled={isLoading}
-        />
-        <small className="form-hint">
-          Only return facts valid at this time (optional). Leave empty to return all facts.
-        </small>
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="validAt">Valid At (Temporal Filter)</label>
+          <input
+            id="validAt"
+            type="datetime-local"
+            value={validAt}
+            onChange={(e) => setValidAt(e.target.value)}
+            disabled={isLoading}
+          />
+          <small className="form-hint">
+            Only return facts valid at this time (optional). Leave empty to return all facts.
+          </small>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="includeStats" className="checkbox-label">
+            <input
+              id="includeStats"
+              type="checkbox"
+              checked={includeStats}
+              onChange={(e) => setIncludeStats(e.target.checked)}
+              disabled={isLoading}
+            />
+            <span>Include Statistics</span>
+          </label>
+          <small className="form-hint">
+            Include query performance statistics in response
+          </small>
+        </div>
       </div>
 
       <button type="submit" disabled={isLoading || !query.trim()}>

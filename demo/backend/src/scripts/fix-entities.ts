@@ -7,7 +7,7 @@
  * 2. Ensures the vector index exists and is properly configured
  * 
  * Usage:
- *   bun run backend/src/scripts/fix-entities.ts
+ *   bun run demo/backend/src/scripts/fix-entities.ts
  */
 
 import { Neo4jService } from '../services/neo4j.service';

@@ -9,6 +9,7 @@ export interface GraphRAGQuery {
   strategy?: QueryStrategy; // Query strategy: 'documents', 'entities', or 'both' (default: 'both')
   includeEmbeddings?: boolean; // Include embeddings in returned entities/relationships (default: false)
   validAt?: Date | string; // Only return facts valid at this time (optional)
+  includeStats?: boolean; // Include query statistics in response (default: false)
 }
 
 export interface Document {
@@ -44,9 +45,21 @@ export interface GraphContext {
   summary: string;
 }
 
+export interface QueryStatistics {
+  searchTimeMs: number;
+  subgraphRetrievalTimeMs: number;
+  llmGenerationTimeMs: number;
+  totalTimeMs: number;
+  documentsFound: number;
+  entitiesFound: number;
+  relationshipsFound: number;
+  strategy: QueryStrategy;
+}
+
 export interface GraphRAGResponse {
   context: GraphContext;
   answer: string;
+  statistics?: QueryStatistics; // Included when includeStats: true
 }
 
 export interface ApiError {
@@ -56,8 +69,16 @@ export interface ApiError {
 }
 
 export interface HealthStatus {
-  status: string;
-  service: string;
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  neo4j: {
+    connected: boolean;
+    error?: string;
+  };
+  openai: {
+    available: boolean;
+    error?: string;
+  };
+  timestamp: string;
 }
 
 export interface Neo4jTestResponse {
@@ -248,5 +269,212 @@ export async function extractTextToGraph(
       validFrom: options?.validFrom,
       validTo: options?.validTo,
     }),
+  });
+}
+
+// Batch learning types and API
+
+export interface BatchLearnItem {
+  text: string;
+  contextId?: string;
+  contextName?: string;
+  validFrom?: Date | string;
+  validTo?: Date | string;
+}
+
+export interface BatchLearnRequest {
+  items: string[] | BatchLearnItem[];
+  contextName?: string;
+  validFrom?: Date | string;
+  validTo?: Date | string;
+  includeEmbeddings?: boolean;
+}
+
+export interface BatchLearnResponse {
+  results: ExtractTextResponse[];
+  summary: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    totalDocumentsCreated: number;
+    totalDocumentsReused: number;
+    totalEntitiesCreated: number;
+    totalRelationshipsCreated: number;
+  };
+  errors?: Array<{
+    index: number;
+    text: string;
+    error: string;
+  }>;
+}
+
+export async function batchExtractTextToGraph(
+  request: BatchLearnRequest
+): Promise<BatchLearnResponse | ApiError> {
+  return fetchApi<BatchLearnResponse | ApiError>('/graph/extract/batch', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+// List operations
+
+export interface ListEntitiesOptions {
+  label?: string;
+  limit?: number;
+  offset?: number;
+  includeEmbeddings?: boolean;
+}
+
+export interface ListRelationshipsOptions {
+  type?: string;
+  fromId?: string;
+  toId?: string;
+  limit?: number;
+  offset?: number;
+  includeEmbeddings?: boolean;
+}
+
+export interface ListDocumentsOptions {
+  limit?: number;
+  offset?: number;
+  includeEmbeddings?: boolean;
+}
+
+export async function listEntities(
+  options?: ListEntitiesOptions
+): Promise<Entity[] | ApiError> {
+  const params = new URLSearchParams();
+  if (options?.label) params.append('label', options.label);
+  if (options?.limit) params.append('limit', options.limit.toString());
+  if (options?.offset) params.append('offset', options.offset.toString());
+  if (options?.includeEmbeddings) params.append('includeEmbeddings', 'true');
+
+  return fetchApi<Entity[] | ApiError>(`/graph/entities?${params.toString()}`);
+}
+
+export async function listRelationships(
+  options?: ListRelationshipsOptions
+): Promise<Relationship[] | ApiError> {
+  const params = new URLSearchParams();
+  if (options?.type) params.append('type', options.type);
+  if (options?.fromId) params.append('fromId', options.fromId);
+  if (options?.toId) params.append('toId', options.toId);
+  if (options?.limit) params.append('limit', options.limit.toString());
+  if (options?.offset) params.append('offset', options.offset.toString());
+  if (options?.includeEmbeddings) params.append('includeEmbeddings', 'true');
+
+  return fetchApi<Relationship[] | ApiError>(`/graph/relationships?${params.toString()}`);
+}
+
+export async function listDocuments(
+  options?: ListDocumentsOptions
+): Promise<Document[] | ApiError> {
+  const params = new URLSearchParams();
+  if (options?.limit) params.append('limit', options.limit.toString());
+  if (options?.offset) params.append('offset', options.offset.toString());
+  if (options?.includeEmbeddings) params.append('includeEmbeddings', 'true');
+
+  return fetchApi<Document[] | ApiError>(`/graph/documents?${params.toString()}`);
+}
+
+// Find operations
+
+export async function findRelationship(
+  id: string
+): Promise<Relationship | ApiError> {
+  return fetchApi<Relationship | ApiError>(`/graph/relationships/${id}`);
+}
+
+export async function findDocument(
+  id: string
+): Promise<Document | ApiError> {
+  return fetchApi<Document | ApiError>(`/graph/documents/${id}`);
+}
+
+// Update operations
+
+export interface UpdateRelationshipRequest {
+  properties: Record<string, unknown>;
+}
+
+export interface UpdateDocumentRequest {
+  properties: Record<string, unknown>;
+}
+
+export async function updateRelationship(
+  id: string,
+  properties: Record<string, unknown>
+): Promise<Relationship | ApiError> {
+  return fetchApi<Relationship | ApiError>(`/graph/relationships/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ properties }),
+  });
+}
+
+export async function updateDocument(
+  id: string,
+  properties: Record<string, unknown>
+): Promise<Document | ApiError> {
+  return fetchApi<Document | ApiError>(`/graph/documents/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ properties }),
+  });
+}
+
+// Delete operations
+
+export async function deleteDocument(
+  id: string
+): Promise<{ success: boolean; message: string; relatedRelationshipsDeleted?: number } | ApiError> {
+  return fetchApi<{ success: boolean; message: string; relatedRelationshipsDeleted?: number } | ApiError>(
+    `/graph/documents/${id}`,
+    {
+      method: 'DELETE',
+    }
+  );
+}
+
+// Configuration validation
+
+export interface ConfigValidationRequest {
+  neo4j: {
+    uri: string;
+    user: string;
+    password: string;
+    database?: string;
+  };
+  openai?: {
+    apiKey: string;
+    model?: string;
+    embeddingModel?: string;
+  };
+  scope?: {
+    id: string;
+    type: string;
+    name: string;
+    metadata?: Record<string, unknown>;
+  };
+  extractionPrompt?: Record<string, unknown>;
+}
+
+export interface ConfigValidationResult {
+  valid: boolean;
+  errors: Array<{
+    field: string;
+    message: string;
+  }>;
+  warnings?: Array<{
+    field: string;
+    message: string;
+  }>;
+}
+
+export async function validateConfig(
+  config: ConfigValidationRequest
+): Promise<ConfigValidationResult | ApiError> {
+  return fetchApi<ConfigValidationResult | ApiError>('/config/validate', {
+    method: 'POST',
+    body: JSON.stringify(config),
   });
 }

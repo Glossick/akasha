@@ -1,4 +1,4 @@
-import app from './backend/src/app';
+import app from './demo/backend/src/app';
 
 // Start the server
 // Use Bun's native server with hot reload for development

@@ -3,6 +3,8 @@ import QueryForm from './components/QueryForm.tsx';
 import Results from './components/Results.tsx';
 import StatusIndicator from './components/StatusIndicator.tsx';
 import GraphManager from './components/GraphManager.tsx';
+import TextExtractionForm from './components/TextExtractionForm.tsx';
+import BatchExtractionForm from './components/BatchExtractionForm.tsx';
 import { queryGraphRAG } from './api.ts';
 import type { GraphRAGQuery, GraphRAGResponse, ApiError, Entity, Relationship } from './api.ts';
 
@@ -101,6 +103,18 @@ function App() {
 
         {activeTab === 'manage' && (
           <section className="manage-section">
+            <div className="extraction-forms">
+              <TextExtractionForm
+                onExtracted={() => setSuccessMessage('Text extracted successfully!')}
+                onError={(err) => setError(err)}
+                isLoading={isLoading}
+              />
+              <BatchExtractionForm
+                onExtracted={() => setSuccessMessage('Batch extraction completed!')}
+                onError={(err) => setError(err)}
+                isLoading={isLoading}
+              />
+            </div>
             <GraphManager
               onEntityCreated={handleEntityCreated}
               onRelationshipCreated={handleRelationshipCreated}

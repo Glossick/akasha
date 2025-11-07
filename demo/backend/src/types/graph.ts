@@ -40,11 +40,24 @@ export interface GraphRAGQuery {
   strategy?: QueryStrategy; // Query strategy: 'documents', 'entities', or 'both' (default: 'both')
   includeEmbeddings?: boolean; // Include embeddings in returned entities/relationships (default: false)
   validAt?: Date | string; // Only return facts valid at this time (optional)
+  includeStats?: boolean; // Include query statistics in response (default: false)
+}
+
+export interface QueryStatistics {
+  searchTimeMs: number;
+  subgraphRetrievalTimeMs: number;
+  llmGenerationTimeMs: number;
+  totalTimeMs: number;
+  documentsFound: number;
+  entitiesFound: number;
+  relationshipsFound: number;
+  strategy: QueryStrategy;
 }
 
 export interface GraphRAGResponse {
   context: GraphContext;
   answer: string;
+  statistics?: QueryStatistics; // Included when includeStats: true
 }
 
 // Write operation types
@@ -116,5 +129,54 @@ export interface ExtractTextResponse {
     entities: number;
     relationships: number;
   };
+}
+
+// Batch learning types
+export interface BatchLearnItem {
+  text: string;
+  contextId?: string;
+  contextName?: string;
+  validFrom?: Date | string;
+  validTo?: Date | string;
+}
+
+export interface BatchLearnRequest {
+  items: string[] | BatchLearnItem[];
+  contextName?: string;
+  validFrom?: Date | string;
+  validTo?: Date | string;
+  includeEmbeddings?: boolean;
+}
+
+export interface BatchLearnResponse {
+  results: ExtractTextResponse[];
+  summary: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    totalDocumentsCreated: number;
+    totalDocumentsReused: number;
+    totalEntitiesCreated: number;
+    totalRelationshipsCreated: number;
+  };
+  errors?: Array<{
+    index: number;
+    text: string;
+    error: string;
+  }>;
+}
+
+// Health check types
+export interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  neo4j: {
+    connected: boolean;
+    error?: string;
+  };
+  openai: {
+    available: boolean;
+    error?: string;
+  };
+  timestamp: string;
 }
 

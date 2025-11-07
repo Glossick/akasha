@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GraphRAGResponse, ApiError, Entity, Relationship, Document } from '../api.ts';
+import type { GraphRAGResponse, ApiError, Entity, Relationship, Document, QueryStatistics } from '../api.ts';
 import GraphRenderer from './GraphRenderer.tsx';
 
 interface ResultsProps {
@@ -50,6 +50,46 @@ function Results({ response }: ResultsProps) {
         {context.summary && (
           <div className="context-summary">
             <strong>Summary:</strong> {context.summary}
+          </div>
+        )}
+
+        {response.statistics && (
+          <div className="query-statistics">
+            <h3>Query Statistics</h3>
+            <div className="stats-grid">
+              <div className="stat-item">
+                <span className="stat-label">Total Time:</span>
+                <span className="stat-value">{response.statistics.totalTimeMs}ms</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Search:</span>
+                <span className="stat-value">{response.statistics.searchTimeMs}ms</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Subgraph Retrieval:</span>
+                <span className="stat-value">{response.statistics.subgraphRetrievalTimeMs}ms</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">LLM Generation:</span>
+                <span className="stat-value">{response.statistics.llmGenerationTimeMs}ms</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Documents Found:</span>
+                <span className="stat-value">{response.statistics.documentsFound}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Entities Found:</span>
+                <span className="stat-value">{response.statistics.entitiesFound}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Relationships Found:</span>
+                <span className="stat-value">{response.statistics.relationshipsFound}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Strategy:</span>
+                <span className="stat-value">{response.statistics.strategy}</span>
+              </div>
+            </div>
           </div>
         )}
 

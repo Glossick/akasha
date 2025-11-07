@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import EntityForm from './EntityForm.tsx';
 import RelationshipForm from './RelationshipForm.tsx';
 import TextExtractionForm from './TextExtractionForm.tsx';
+import EntityList from './EntityList.tsx';
 import { getEntity, deleteEntity } from '../api.ts';
 import type { Entity, Relationship, ApiError, ExtractTextResponse } from '../api.ts';
 
@@ -130,14 +131,14 @@ function GraphManager({ onEntityCreated, onRelationshipCreated }: GraphManagerPr
         </section>
 
         <section className="entities-section">
-          <h3>Created Entities ({entities.length})</h3>
+          <h3>Session Entities ({entities.length})</h3>
           {entities.length === 0 ? (
-            <p className="empty-state">No entities created yet. Create one above to get started.</p>
+            <p className="empty-state">No entities created in this session. Create one above to get started.</p>
           ) : (
             <div className="entities-list">
               {entities.map((entity) => {
                 // Filter out internal properties for display
-                const internalKeys = ['embedding', '_similarity'];
+                const internalKeys = ['embedding', '_similarity', 'scopeId', 'contextIds', '_recordedAt', '_validFrom', '_validTo'];
                 const displayProperties = Object.entries(entity.properties).filter(
                   ([key]) => !internalKeys.includes(key)
                 );
@@ -205,7 +206,7 @@ function GraphManager({ onEntityCreated, onRelationshipCreated }: GraphManagerPr
                   <pre>{JSON.stringify(
                     Object.fromEntries(
                       Object.entries(selectedEntity.properties).filter(
-                        ([key]) => !['embedding', '_similarity'].includes(key)
+                        ([key]) => !['embedding', '_similarity', 'scopeId', 'contextIds', '_recordedAt', '_validFrom', '_validTo'].includes(key)
                       )
                     ),
                     null,
@@ -216,6 +217,28 @@ function GraphManager({ onEntityCreated, onRelationshipCreated }: GraphManagerPr
               <button onClick={() => setSelectedEntity(null)}>Close</button>
             </div>
           )}
+        </section>
+
+        <section className="all-entities-section">
+          <EntityList
+            onEntityUpdated={(entity) => {
+              // Update session entities if it exists there
+              setEntities((prev) =>
+                prev.map((e) => (e.id === entity.id ? entity : e))
+              );
+              if (selectedEntity?.id === entity.id) {
+                setSelectedEntity(entity);
+              }
+              onEntityCreated?.(entity);
+            }}
+            onEntityDeleted={(id) => {
+              setEntities((prev) => prev.filter((e) => e.id !== id));
+              if (selectedEntity?.id === id) {
+                setSelectedEntity(null);
+              }
+            }}
+            onError={setError}
+          />
         </section>
       </div>
     </div>

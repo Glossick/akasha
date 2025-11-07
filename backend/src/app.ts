@@ -94,6 +94,7 @@ app.post('/api/graphrag/query', async ({ body }) => {
         limit: query.limit,
         strategy: query.strategy || 'both', // Default to 'both' strategy
         includeEmbeddings: query.includeEmbeddings || false,
+        validAt: query.validAt,
       });
       return response;
     } catch (error) {
@@ -140,6 +141,8 @@ app.post('/api/graph/extract', async ({ body }) => {
     try {
       const result = await kg.learn(request.text, {
         contextName: 'Extracted Text',
+        validFrom: request.validFrom,
+        validTo: request.validTo,
       });
       
       // Map Akasha result to ExtractTextResponse format

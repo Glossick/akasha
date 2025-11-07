@@ -16,8 +16,7 @@ let graphRAG: GraphRAGService | null = null;
 
 **After:**
 ```typescript
-import { akasha } from '../../akasha/src/factory';
-import type { Akasha } from '../../akasha/src/akasha';
+import { akasha, Akasha } from '@glossick/akasha';
 let akashaInstance: Akasha | null = null;
 ```
 

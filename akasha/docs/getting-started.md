@@ -4,7 +4,9 @@ This guide will help you set up Akasha and create your first knowledge graph fro
 
 ## Prerequisites
 
-- **Bun runtime** (v1.1.26 or later)
+- **Bun runtime** (v1.1.26 or later) - **Required**
+  - ⚠️ **Note**: Akasha currently requires Bun as the runtime. Node.js compatibility is in progress.
+  - You can install the package via npm, but you must run your code with Bun.
 - **Neo4j database** (v5.0 or later, with vector index support)
 - **OpenAI API key** (for embeddings and LLM responses)
 
@@ -16,11 +18,13 @@ Install Akasha using your package manager:
 bun add @glossick/akasha
 ```
 
-Or with npm:
+Or with npm (package can be installed, but requires Bun runtime):
 
 ```bash
 npm install @glossick/akasha
 ```
+
+**Important**: While the package can be installed via npm, Akasha currently requires the Bun runtime to execute. Node.js compatibility is being worked on.
 
 Then import it in your code:
 
@@ -136,6 +140,9 @@ You can customize the query strategy:
 - `strategy: 'documents'` - Search document nodes first, then connected entities
 - `strategy: 'entities'` - Search entity nodes only (original behavior)
 - `strategy: 'both'` - Search both documents and entities (default)
+
+You can also control relevance filtering:
+- `similarityThreshold: 0.7` - Minimum similarity score (default: `0.7`). Only results above this threshold are returned. Use higher values (e.g., `0.8`, `0.9`) for stricter filtering, or lower values (e.g., `0.5`, `0.6`) for more permissive results.
 
 ## Cleanup
 

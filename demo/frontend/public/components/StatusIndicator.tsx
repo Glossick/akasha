@@ -39,22 +39,37 @@ function StatusIndicator() {
     );
   }
 
-  const isHealthy = health?.status === 'ok';
-  const isNeo4jConnected = neo4jStatus?.status === 'connected';
+  // Handle new HealthStatus format
+  const healthStatus = health?.status || 'unknown';
+  const isHealthy = healthStatus === 'healthy';
+  const isNeo4jConnected = health?.neo4j?.connected || neo4jStatus?.status === 'connected';
+  const isOpenAIAvailable = health?.openai?.available;
 
   return (
     <div className="status-indicator">
       <div className="status-item">
         <span
-          className={`status-dot ${isHealthy ? 'connected' : 'disconnected'}`}
+          className={`status-dot ${isHealthy ? 'connected' : healthStatus === 'degraded' ? 'warning' : 'disconnected'}`}
         />
-        <span>API: {health?.status || 'unknown'}</span>
+        <span>Status: {healthStatus}</span>
       </div>
       <div className="status-item">
         <span
-          className={`status-dot ${isNeo4jConnected ? 'connected' : 'disconnected'}`}
+          className={`status-dot ${health?.neo4j?.connected ? 'connected' : 'disconnected'}`}
         />
-        <span>Neo4j: {neo4jStatus?.status || 'unknown'}</span>
+        <span>Neo4j: {health?.neo4j?.connected ? 'connected' : 'disconnected'}</span>
+        {health?.neo4j?.error && (
+          <span className="status-error" title={health.neo4j.error}>⚠️</span>
+        )}
+      </div>
+      <div className="status-item">
+        <span
+          className={`status-dot ${health?.openai?.available ? 'connected' : 'disconnected'}`}
+        />
+        <span>OpenAI: {health?.openai?.available ? 'available' : 'unavailable'}</span>
+        {health?.openai?.error && (
+          <span className="status-error" title={health.openai.error}>⚠️</span>
+        )}
       </div>
       {!isNeo4jConnected && neo4jStatus?.hint && (
         <div className="status-hint">{neo4jStatus.hint}</div>

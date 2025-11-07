@@ -1,0 +1,45 @@
+# Source files (only dist should be published)
+src/
+scripts/
+examples/
+
+# Test files
+__tests__/
+*.test.ts
+*.test.tsx
+
+# Development files
+.env
+.env.*
+*.log
+.DS_Store
+
+# Build artifacts (keep dist, ignore intermediate)
+*.tsbuildinfo
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation source (keep built docs if any)
+# docs/ - keep docs for npm
+
+# Lock files
+bun.lockb
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# CI/CD
+.github/
+.cursor/
+
+# TypeScript config (not needed in package)
+tsconfig.json
+

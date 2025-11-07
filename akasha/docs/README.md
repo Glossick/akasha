@@ -2,11 +2,13 @@
 
 Akasha is a minimal, developer-friendly GraphRAG library that transforms natural language into structured knowledge graphs and enables semantic querying over that knowledge.
 
+> **⚠️ Runtime Requirement**: Akasha currently requires the [Bun](https://bun.sh) runtime (v1.1.26 or later). Node.js compatibility is in progress. The package can be installed via npm, but code must be executed with Bun.
+
 ## Navigation
 
 - [Getting Started](./getting-started.md) - Quick start guide
 - [Core Concepts](./core-concepts.md) - Understanding Akasha's architecture
-- [Philosophy](./philosophy.md) - Conceptual foundations and design principles
+- [Design Principles](./philosophy.md) - Design principles and architecture decisions
 - [API Reference](./api-reference.md) - Complete API documentation
 - [Ontologies](./ontologies.md) - Working with custom ontologies
 - [Multi-Tenancy](./multi-tenancy.md) - Scope and context management
@@ -18,19 +20,13 @@ Akasha is a minimal, developer-friendly GraphRAG library that transforms natural
 
 Akasha is a GraphRAG (Graph Retrieval-Augmented Generation) library that extracts entities and relationships from natural language, stores them in a graph database, and enables semantic queries that traverse those relationships.
 
-The name "Akasha" derives from Sanskrit, meaning "aether" or "space"—the foundational essence that connects all things. In this library, Akasha serves as the connective medium between language and knowledge, between questions and answers, between data and understanding.
+## Key Features
 
-## Core Philosophy
-
-Akasha operates on a few fundamental principles:
-
-**Knowledge as Structure**: Information gains meaning through relationships. A person alone is data; a person connected to a company, a project, and other people becomes knowledge.
-
-**Semantic Over Syntax**: We query by meaning, not by exact string matching. "Who works with Alice?" and "What are Alice's colleagues?" should yield the same results.
-
-**Ontological Flexibility**: Different domains require different ways of understanding. A process ontology suits workflows; a substance ontology suits entities. Akasha accommodates both.
-
-**Scope as Boundary**: Knowledge exists in contexts. A tenant's data, a project's documents, a user's notes—each has its own semantic space that can be isolated or connected as needed.
+- **Semantic Search**: Query by meaning, not exact string matching
+- **Flexible Ontologies**: Define custom entity and relationship types through templates
+- **Multi-Tenancy**: Scope-based data isolation for tenants, workspaces, or projects
+- **Document Nodes**: First-class document representation with deduplication
+- **Temporal Tracking**: Optional validity periods for facts
 
 ## Quick Example
 
