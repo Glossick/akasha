@@ -39,11 +39,15 @@
     "semantic-search",
     "vector-search"
   ],
-  "author": "Glossick",
+  "author": {
+    "name": "Glossick",
+    "url": "https://glossick.io"
+  },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Glossick/akasha.git"
+    "url": "https://github.com/Glossick/akasha.git",
+    "directory": "akasha"
   },
   "dependencies": {
     "neo4j-driver": "^6.0.1",
