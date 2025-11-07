@@ -12,6 +12,7 @@ function QueryForm({ onSubmit, isLoading }: QueryFormProps) {
   const [limit, setLimit] = useState<number>(50);
   const [strategy, setStrategy] = useState<QueryStrategy>('both');
   const [includeEmbeddings, setIncludeEmbeddings] = useState<boolean>(false);
+  const [validAt, setValidAt] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +25,7 @@ function QueryForm({ onSubmit, isLoading }: QueryFormProps) {
       limit,
       strategy,
       includeEmbeddings,
+      validAt: validAt ? validAt : undefined,
     });
   };
 
@@ -108,6 +110,20 @@ function QueryForm({ onSubmit, isLoading }: QueryFormProps) {
             Include vector embeddings in response (increases payload size)
           </small>
         </div>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="validAt">Valid At (Temporal Filter)</label>
+        <input
+          id="validAt"
+          type="datetime-local"
+          value={validAt}
+          onChange={(e) => setValidAt(e.target.value)}
+          disabled={isLoading}
+        />
+        <small className="form-hint">
+          Only return facts valid at this time (optional). Leave empty to return all facts.
+        </small>
       </div>
 
       <button type="submit" disabled={isLoading || !query.trim()}>

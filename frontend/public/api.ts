@@ -8,6 +8,7 @@ export interface GraphRAGQuery {
   limit?: number;
   strategy?: QueryStrategy; // Query strategy: 'documents', 'entities', or 'both' (default: 'both')
   includeEmbeddings?: boolean; // Include embeddings in returned entities/relationships (default: false)
+  validAt?: Date | string; // Only return facts valid at this time (optional)
 }
 
 export interface Document {
@@ -16,7 +17,8 @@ export interface Document {
   properties: {
     text: string; // Full text content
     scopeId: string;
-    contextId?: string; // Optional link to Context metadata
+    contextIds?: string[]; // Array of context IDs this document belongs to
+    contextId?: string; // DEPRECATED: Use contextIds instead (for backward compatibility)
     metadata?: Record<string, unknown>;
   };
 }
@@ -233,10 +235,18 @@ export interface ExtractTextResponse {
 }
 
 export async function extractTextToGraph(
-  text: string
+  text: string,
+  options?: {
+    validFrom?: Date | string;
+    validTo?: Date | string;
+  }
 ): Promise<ExtractTextResponse | ApiError> {
   return fetchApi<ExtractTextResponse | ApiError>('/graph/extract', {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({
+      text,
+      validFrom: options?.validFrom,
+      validTo: options?.validTo,
+    }),
   });
 }

@@ -127,7 +127,8 @@ export class Neo4jService {
     limit: number = 10,
     similarityThreshold: number = 0.5,
     scopeId?: string,
-    contexts?: string[]
+    contexts?: string[],
+    validAt?: string
   ): Promise<Entity[]> {
     const session = this.getSession();
     try {
@@ -148,13 +149,17 @@ export class Neo4jService {
           RETURN id(node) as id, labels(node) as labels, properties(node) as properties, score
         `;
 
-        // Add scope and context filters if provided
+        // Add scope, context, and temporal filters if provided
         const whereConditions: string[] = [];
         if (scopeId) {
           whereConditions.push('node.scopeId = $scopeId');
         }
         if (contexts && contexts.length > 0) {
           whereConditions.push('(node.contextIds IS NULL OR ANY(ctx IN node.contextIds WHERE ctx IN $contexts))');
+        }
+        if (validAt) {
+          whereConditions.push('(node._validFrom IS NULL OR node._validFrom <= $validAt)');
+          whereConditions.push('(node._validTo IS NULL OR node._validTo >= $validAt)');
         }
         
         if (whereConditions.length > 0) {
@@ -170,6 +175,7 @@ export class Neo4jService {
           limit: limitInt,
           ...(scopeId ? { scopeId } : {}),
           ...(contexts && contexts.length > 0 ? { contexts } : {}),
+          ...(validAt ? { validAt } : {}),
         });
 
         const vectorResults = result.records
@@ -207,6 +213,11 @@ export class Neo4jService {
       if (contexts && contexts.length > 0) {
         fallbackQuery += ` AND (n.contextIds IS NULL OR ANY(ctx IN n.contextIds WHERE ctx IN $contexts))`;
       }
+      
+      if (validAt) {
+        fallbackQuery += ` AND (n._validFrom IS NULL OR n._validFrom <= $validAt)`;
+        fallbackQuery += ` AND (n._validTo IS NULL OR n._validTo >= $validAt)`;
+      }
 
       fallbackQuery += `
         RETURN id(n) as id, labels(n) as labels, properties(n) as properties, n.embedding as embedding
@@ -216,6 +227,7 @@ export class Neo4jService {
       const fallbackResult = await session.run(fallbackQuery, {
         ...(scopeId ? { scopeId } : {}),
         ...(contexts && contexts.length > 0 ? { contexts } : {}),
+        ...(validAt ? { validAt } : {}),
       });
       const entities: Array<Entity & { similarity?: number }> = [];
 
@@ -594,7 +606,8 @@ export class Neo4jService {
     limit: number = 10,
     similarityThreshold: number = 0.5,
     scopeId?: string,
-    contexts?: string[]
+    contexts?: string[],
+    validAt?: string
   ): Promise<Document[]> {
     const session = this.getSession();
     try {
@@ -674,6 +687,11 @@ export class Neo4jService {
       if (contexts && contexts.length > 0) {
         fallbackQuery += ` AND (d.contextIds IS NULL OR ANY(ctx IN d.contextIds WHERE ctx IN $contexts))`;
       }
+      
+      if (validAt) {
+        fallbackQuery += ` AND (d._validFrom IS NULL OR d._validFrom <= $validAt)`;
+        fallbackQuery += ` AND (d._validTo IS NULL OR d._validTo >= $validAt)`;
+      }
 
       fallbackQuery += `
         RETURN id(d) as id, labels(d) as labels, properties(d) as properties, d.embedding as embedding
@@ -683,6 +701,7 @@ export class Neo4jService {
       const fallbackResult = await session.run(fallbackQuery, {
         ...(scopeId ? { scopeId } : {}),
         ...(contexts && contexts.length > 0 ? { contexts } : {}),
+        ...(validAt ? { validAt } : {}),
       });
       const documents: Array<Document & { similarity?: number }> = [];
 
@@ -857,6 +876,627 @@ export class Neo4jService {
         label: record.get('labels')[0] || 'Unknown',
         properties: record.get('properties') || {},
       };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Find entity by ID
+   */
+  async findEntityById(entityId: string, scopeId?: string): Promise<Entity | null> {
+    const session = this.getSession();
+    try {
+      const entId = neo4j.int(entityId);
+      
+      let query = `
+        MATCH (e:Entity)
+        WHERE id(e) = $entId
+      `;
+      
+      if (scopeId) {
+        query += ` AND e.scopeId = $scopeId`;
+      }
+      
+      query += `
+        RETURN id(e) as id, labels(e) as labels, properties(e) as properties
+      `;
+
+      const result = await session.run(query, {
+        entId,
+        ...(scopeId ? { scopeId } : {}),
+      });
+      
+      if (result.records.length === 0) {
+        return null;
+      }
+
+      const record = result.records[0];
+      return {
+        id: record.get('id').toString(),
+        label: record.get('labels')[0] || 'Unknown',
+        properties: record.get('properties') || {},
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Find relationship by ID
+   */
+  async findRelationshipById(relationshipId: string, scopeId?: string): Promise<Relationship | null> {
+    const session = this.getSession();
+    try {
+      const relId = neo4j.int(relationshipId);
+      
+      let query = `
+        MATCH (a)-[r]->(b)
+        WHERE id(r) = $relId
+      `;
+      
+      if (scopeId) {
+        query += ` AND r.scopeId = $scopeId`;
+      }
+      
+      query += `
+        RETURN id(r) as id, type(r) as type, id(a) as fromId, id(b) as toId, properties(r) as properties
+      `;
+
+      const result = await session.run(query, {
+        relId,
+        ...(scopeId ? { scopeId } : {}),
+      });
+      
+      if (result.records.length === 0) {
+        return null;
+      }
+
+      const record = result.records[0];
+      return {
+        id: record.get('id').toString(),
+        type: record.get('type'),
+        from: record.get('fromId').toString(),
+        to: record.get('toId').toString(),
+        properties: record.get('properties') || {},
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Find document by ID
+   */
+  async findDocumentById(documentId: string, scopeId?: string): Promise<Document | null> {
+    const session = this.getSession();
+    try {
+      const docId = neo4j.int(documentId);
+      
+      let query = `
+        MATCH (d:Document)
+        WHERE id(d) = $docId
+      `;
+      
+      if (scopeId) {
+        query += ` AND d.scopeId = $scopeId`;
+      }
+      
+      query += `
+        RETURN id(d) as id, labels(d) as labels, properties(d) as properties
+      `;
+
+      const result = await session.run(query, {
+        docId,
+        ...(scopeId ? { scopeId } : {}),
+      });
+      
+      if (result.records.length === 0) {
+        return null;
+      }
+
+      const record = result.records[0];
+      return {
+        id: record.get('id').toString(),
+        label: 'Document',
+        properties: record.get('properties') || {},
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Delete entity by ID (cascade delete relationships)
+   */
+  async deleteEntity(entityId: string, scopeId?: string): Promise<{ deleted: boolean; message: string; relatedRelationshipsDeleted?: number }> {
+    const session = this.getSession();
+    try {
+      const entId = neo4j.int(entityId);
+
+      // First check if entity exists and get relationship count
+      let checkQuery = `
+        MATCH (e:Entity)
+        WHERE id(e) = $entId
+      `;
+      
+      if (scopeId) {
+        checkQuery += ` AND e.scopeId = $scopeId`;
+      }
+      
+      checkQuery += `
+        OPTIONAL MATCH (e)-[r]-()
+        RETURN e, count(r) as relCount
+      `;
+
+      const checkResult = await session.run(checkQuery, {
+        entId,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      if (checkResult.records.length === 0) {
+        return {
+          deleted: false,
+          message: `Entity with id ${entityId} not found`,
+        };
+      }
+
+      const relCount = checkResult.records[0].get('relCount').toNumber();
+
+      // Delete entity and all relationships
+      let deleteQuery = `
+        MATCH (e:Entity)
+        WHERE id(e) = $entId
+      `;
+      
+      if (scopeId) {
+        deleteQuery += ` AND e.scopeId = $scopeId`;
+      }
+      
+      deleteQuery += `
+        DETACH DELETE e
+        RETURN count(e) as deleted
+      `;
+
+      const deleteResult = await session.run(deleteQuery, {
+        entId,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      const deleted = deleteResult.records[0].get('deleted').toNumber() > 0;
+
+      return {
+        deleted,
+        message: deleted ? 'Entity deleted' : 'Entity not found',
+        relatedRelationshipsDeleted: deleted ? relCount : undefined,
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Delete relationship by ID
+   */
+  async deleteRelationship(relationshipId: string, scopeId?: string): Promise<{ deleted: boolean; message: string }> {
+    const session = this.getSession();
+    try {
+      const relId = neo4j.int(relationshipId);
+
+      let query = `
+        MATCH ()-[r]-()
+        WHERE id(r) = $relId
+      `;
+      
+      if (scopeId) {
+        query += ` AND r.scopeId = $scopeId`;
+      }
+      
+      query += `
+        DELETE r
+        RETURN count(r) as deleted
+      `;
+
+      const result = await session.run(query, {
+        relId,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      const deleted = result.records.length > 0 && result.records[0].get('deleted').toNumber() > 0;
+
+      return {
+        deleted,
+        message: deleted ? 'Relationship deleted' : `Relationship with id ${relationshipId} not found`,
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Delete document by ID (cascade delete CONTAINS_ENTITY relationships)
+   */
+  async deleteDocument(documentId: string, scopeId?: string): Promise<{ deleted: boolean; message: string; relatedRelationshipsDeleted?: number }> {
+    const session = this.getSession();
+    try {
+      const docId = neo4j.int(documentId);
+
+      // First check if document exists and get relationship count
+      let checkQuery = `
+        MATCH (d:Document)
+        WHERE id(d) = $docId
+      `;
+      
+      if (scopeId) {
+        checkQuery += ` AND d.scopeId = $scopeId`;
+      }
+      
+      checkQuery += `
+        OPTIONAL MATCH (d)-[r:CONTAINS_ENTITY]-()
+        RETURN d, count(r) as relCount
+      `;
+
+      const checkResult = await session.run(checkQuery, {
+        docId,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      if (checkResult.records.length === 0) {
+        return {
+          deleted: false,
+          message: `Document with id ${documentId} not found`,
+        };
+      }
+
+      const relCount = checkResult.records[0].get('relCount').toNumber();
+
+      // Delete document and all CONTAINS_ENTITY relationships
+      let deleteQuery = `
+        MATCH (d:Document)
+        WHERE id(d) = $docId
+      `;
+      
+      if (scopeId) {
+        deleteQuery += ` AND d.scopeId = $scopeId`;
+      }
+      
+      deleteQuery += `
+        OPTIONAL MATCH (d)-[r:CONTAINS_ENTITY]-()
+        DELETE r, d
+        RETURN count(d) as deleted
+      `;
+
+      const deleteResult = await session.run(deleteQuery, {
+        docId,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      const deleted = deleteResult.records.length > 0 && deleteResult.records[0].get('deleted').toNumber() > 0;
+
+      return {
+        deleted,
+        message: deleted ? 'Document deleted' : 'Document not found',
+        relatedRelationshipsDeleted: deleted ? relCount : undefined,
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Update entity properties (preserves system metadata)
+   */
+  async updateEntity(entityId: string, properties: Record<string, unknown>, scopeId?: string): Promise<Entity> {
+    const session = this.getSession();
+    try {
+      const entId = neo4j.int(entityId);
+
+      // Filter out system metadata fields that shouldn't be updated
+      const systemMetadataFields = ['_recordedAt', '_validFrom', '_validTo', 'scopeId', 'contextIds', 'embedding'];
+      const filteredProperties = Object.fromEntries(
+        Object.entries(properties).filter(([key]) => !systemMetadataFields.includes(key))
+      );
+
+      let query = `
+        MATCH (e:Entity)
+        WHERE id(e) = $entId
+      `;
+      
+      if (scopeId) {
+        query += ` AND e.scopeId = $scopeId`;
+      }
+      
+      query += `
+        SET e += $properties
+        RETURN id(e) as id, labels(e) as labels, properties(e) as properties
+      `;
+
+      const result = await session.run(query, {
+        entId,
+        properties: filteredProperties,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      if (result.records.length === 0) {
+        throw new Error(`Entity with id ${entityId} not found`);
+      }
+
+      const record = result.records[0];
+      return {
+        id: record.get('id').toString(),
+        label: record.get('labels')[0] || 'Unknown',
+        properties: record.get('properties') || {},
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Update relationship properties
+   */
+  async updateRelationship(relationshipId: string, properties: Record<string, unknown>, scopeId?: string): Promise<Relationship> {
+    const session = this.getSession();
+    try {
+      const relId = neo4j.int(relationshipId);
+
+      // Filter out system metadata fields
+      const systemMetadataFields = ['_recordedAt', '_validFrom', '_validTo', 'scopeId'];
+      const filteredProperties = Object.fromEntries(
+        Object.entries(properties).filter(([key]) => !systemMetadataFields.includes(key))
+      );
+
+      let query = `
+        MATCH ()-[r]->()
+        WHERE id(r) = $relId
+      `;
+      
+      if (scopeId) {
+        query += ` AND r.scopeId = $scopeId`;
+      }
+      
+      query += `
+        SET r += $properties
+        RETURN id(r) as id, type(r) as type, startNode(r) as fromNode, endNode(r) as toNode, properties(r) as properties
+      `;
+
+      const result = await session.run(query, {
+        relId,
+        properties: filteredProperties,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      if (result.records.length === 0) {
+        throw new Error(`Relationship with id ${relationshipId} not found`);
+      }
+
+      const record = result.records[0];
+      return {
+        id: record.get('id').toString(),
+        type: record.get('type'),
+        from: record.get('fromNode').identity.toString(),
+        to: record.get('toNode').identity.toString(),
+        properties: record.get('properties') || {},
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Update document properties (preserves system metadata and text)
+   */
+  async updateDocument(documentId: string, properties: Record<string, unknown>, scopeId?: string): Promise<Document> {
+    const session = this.getSession();
+    try {
+      const docId = neo4j.int(documentId);
+
+      // Filter out system metadata fields and text (text can't be changed - breaks deduplication)
+      const protectedFields = ['_recordedAt', '_validFrom', '_validTo', 'scopeId', 'contextIds', 'text', 'embedding'];
+      const filteredProperties = Object.fromEntries(
+        Object.entries(properties).filter(([key]) => !protectedFields.includes(key))
+      );
+
+      let query = `
+        MATCH (d:Document)
+        WHERE id(d) = $docId
+      `;
+      
+      if (scopeId) {
+        query += ` AND d.scopeId = $scopeId`;
+      }
+      
+      query += `
+        SET d += $properties
+        RETURN id(d) as id, labels(d) as labels, properties(d) as properties
+      `;
+
+      const result = await session.run(query, {
+        docId,
+        properties: filteredProperties,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      if (result.records.length === 0) {
+        throw new Error(`Document with id ${documentId} not found`);
+      }
+
+      const record = result.records[0];
+      return {
+        id: record.get('id').toString(),
+        label: 'Document',
+        properties: record.get('properties') || {},
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * List entities with optional filtering and pagination
+   */
+  async listEntities(label?: string, limit: number = 100, offset: number = 0, scopeId?: string): Promise<Entity[]> {
+    const session = this.getSession();
+    try {
+      const limitInt = neo4j.int(Math.floor(limit));
+      const offsetInt = neo4j.int(Math.floor(offset));
+
+      let query = `
+        MATCH (e:Entity)
+      `;
+
+      if (label) {
+        query = `
+          MATCH (e:${label}:Entity)
+        `;
+      }
+
+      const whereConditions: string[] = [];
+      if (scopeId) {
+        whereConditions.push('e.scopeId = $scopeId');
+      }
+
+      if (whereConditions.length > 0) {
+        query += ` WHERE ${whereConditions.join(' AND ')}`;
+      }
+
+      query += `
+        RETURN id(e) as id, labels(e) as labels, properties(e) as properties
+        ORDER BY e.name, id(e)
+        SKIP $offset LIMIT $limit
+      `;
+
+      const result = await session.run(query, {
+        limit: limitInt,
+        offset: offsetInt,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      return result.records.map((record: any) => ({
+        id: record.get('id').toString(),
+        label: record.get('labels').find((l: string) => l !== 'Entity') || record.get('labels')[0] || 'Unknown',
+        properties: record.get('properties') || {},
+      }));
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * List relationships with optional filtering and pagination
+   */
+  async listRelationships(
+    type?: string,
+    fromId?: string,
+    toId?: string,
+    limit: number = 100,
+    offset: number = 0,
+    scopeId?: string
+  ): Promise<Relationship[]> {
+    const session = this.getSession();
+    try {
+      const limitInt = neo4j.int(Math.floor(limit));
+      const offsetInt = neo4j.int(Math.floor(offset));
+
+      let query = `
+        MATCH (a)-[r]->(b)
+      `;
+
+      if (type) {
+        query = `
+          MATCH (a)-[r:${type}]->(b)
+        `;
+      }
+
+      const whereConditions: string[] = [];
+      if (scopeId) {
+        whereConditions.push('r.scopeId = $scopeId');
+      }
+      if (fromId) {
+        whereConditions.push('id(a) = $fromId');
+      }
+      if (toId) {
+        whereConditions.push('id(b) = $toId');
+      }
+
+      if (whereConditions.length > 0) {
+        query += ` WHERE ${whereConditions.join(' AND ')}`;
+      }
+
+      query += `
+        RETURN id(r) as id, type(r) as type, id(a) as fromId, id(b) as toId, properties(r) as properties
+        ORDER BY id(r)
+        SKIP $offset LIMIT $limit
+      `;
+
+      const params: Record<string, unknown> = {
+        limit: limitInt,
+        offset: offsetInt,
+      };
+
+      if (scopeId) {
+        params.scopeId = scopeId;
+      }
+      if (fromId) {
+        params.fromId = neo4j.int(fromId);
+      }
+      if (toId) {
+        params.toId = neo4j.int(toId);
+      }
+
+      const result = await session.run(query, params);
+
+      return result.records.map((record: any) => ({
+        id: record.get('id').toString(),
+        type: record.get('type'),
+        from: record.get('fromId').toString(),
+        to: record.get('toId').toString(),
+        properties: record.get('properties') || {},
+      }));
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * List documents with optional pagination
+   */
+  async listDocuments(limit: number = 100, offset: number = 0, scopeId?: string): Promise<Document[]> {
+    const session = this.getSession();
+    try {
+      const limitInt = neo4j.int(Math.floor(limit));
+      const offsetInt = neo4j.int(Math.floor(offset));
+
+      let query = `
+        MATCH (d:Document)
+      `;
+
+      const whereConditions: string[] = [];
+      if (scopeId) {
+        whereConditions.push('d.scopeId = $scopeId');
+      }
+
+      if (whereConditions.length > 0) {
+        query += ` WHERE ${whereConditions.join(' AND ')}`;
+      }
+
+      query += `
+        RETURN id(d) as id, labels(d) as labels, properties(d) as properties
+        ORDER BY d.text, id(d)
+        SKIP $offset LIMIT $limit
+      `;
+
+      const result = await session.run(query, {
+        limit: limitInt,
+        offset: offsetInt,
+        ...(scopeId ? { scopeId } : {}),
+      });
+
+      return result.records.map((record: any) => ({
+        id: record.get('id').toString(),
+        label: 'Document',
+        properties: record.get('properties') || {},
+      }));
     } finally {
       await session.close();
     }

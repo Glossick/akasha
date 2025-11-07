@@ -11,12 +11,28 @@ import type {
   Relationship,
   ExtractionPromptTemplate,
   Document,
+  BatchLearnItem,
+  BatchLearnResult,
+  BatchLearnOptions,
+  HealthStatus,
+  QueryStatistics,
+  DeleteResult,
+  UpdateEntityOptions,
+  UpdateRelationshipOptions,
+  UpdateDocumentOptions,
+  ListEntitiesOptions,
+  ListRelationshipsOptions,
+  ListDocumentsOptions,
+  BatchProgress,
+  BatchProgressCallback,
+  ConfigValidationResult,
 } from './types';
 import { Neo4jService } from './services/neo4j.service';
 import { EmbeddingService } from './services/embedding.service';
 import { generateEntityText } from './utils/entity-embedding';
 import { generateExtractionPrompt } from './utils/prompt-template';
 import { scrubEmbeddings } from './utils/scrub-embeddings';
+import { generateSystemMetadata } from './utils/system-metadata';
 import { randomUUID } from 'crypto';
 import neo4j from 'neo4j-driver';
 
@@ -28,12 +44,14 @@ export class Akasha {
   private embeddings: EmbeddingService;
   private scope?: Scope;
   private extractionPromptConfig?: Partial<ExtractionPromptTemplate>;
+  private config: AkashaConfig;
 
   constructor(
     config: AkashaConfig,
     neo4jService?: Neo4jService,
     embeddingService?: EmbeddingService
   ) {
+    this.config = config;
     this.scope = config.scope;
     this.extractionPromptConfig = config.extractionPrompt;
 
@@ -44,6 +62,95 @@ export class Akasha {
       model: config.openai?.model,
       embeddingModel: config.openai?.embeddingModel,
     });
+  }
+
+  /**
+   * Validate configuration (static method)
+   */
+  static validateConfig(config: AkashaConfig): ConfigValidationResult {
+    const errors: Array<{ field: string; message: string }> = [];
+    const warnings: Array<{ field: string; message: string }> = [];
+
+    // Validate Neo4j configuration
+    if (!config.neo4j) {
+      errors.push({
+        field: 'neo4j',
+        message: 'Neo4j configuration is required',
+      });
+    } else {
+      if (!config.neo4j.uri || typeof config.neo4j.uri !== 'string' || config.neo4j.uri.trim() === '') {
+        errors.push({
+          field: 'neo4j.uri',
+          message: 'Neo4j URI is required and must be a non-empty string',
+        });
+      } else if (!config.neo4j.uri.startsWith('bolt://') && !config.neo4j.uri.startsWith('neo4j://')) {
+        warnings.push({
+          field: 'neo4j.uri',
+          message: 'Neo4j URI should start with "bolt://" or "neo4j://"',
+        });
+      }
+
+      if (!config.neo4j.user || typeof config.neo4j.user !== 'string' || config.neo4j.user.trim() === '') {
+        errors.push({
+          field: 'neo4j.user',
+          message: 'Neo4j user is required and must be a non-empty string',
+        });
+      }
+
+      if (!config.neo4j.password || typeof config.neo4j.password !== 'string' || config.neo4j.password.trim() === '') {
+        errors.push({
+          field: 'neo4j.password',
+          message: 'Neo4j password is required and must be a non-empty string',
+        });
+      }
+    }
+
+    // Validate OpenAI configuration (optional, but if provided, apiKey is required)
+    if (config.openai !== undefined) {
+      if (!config.openai.apiKey || typeof config.openai.apiKey !== 'string' || config.openai.apiKey.trim() === '') {
+        errors.push({
+          field: 'openai.apiKey',
+          message: 'OpenAI API key is required when openai configuration is provided',
+        });
+      }
+    }
+
+    // Validate Scope configuration (optional, but if provided, all fields are required)
+    if (config.scope !== undefined) {
+      if (!config.scope.id || typeof config.scope.id !== 'string' || config.scope.id.trim() === '') {
+        errors.push({
+          field: 'scope.id',
+          message: 'Scope ID is required when scope is provided',
+        });
+      }
+
+      if (!config.scope.type || typeof config.scope.type !== 'string' || config.scope.type.trim() === '') {
+        errors.push({
+          field: 'scope.type',
+          message: 'Scope type is required when scope is provided',
+        });
+      }
+
+      if (!config.scope.name || typeof config.scope.name !== 'string' || config.scope.name.trim() === '') {
+        errors.push({
+          field: 'scope.name',
+          message: 'Scope name is required when scope is provided',
+        });
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      ...(warnings.length > 0 ? { warnings } : {}),
+    };
+  }
+
+  /**
+   * Validate instance configuration
+   */
+  validateConfig(): ConfigValidationResult {
+    return Akasha.validateConfig(this.config);
   }
 
   /**
@@ -72,11 +179,17 @@ export class Akasha {
    * Ask a question (GraphRAG query)
    */
   async ask(query: string, options?: QueryOptions): Promise<GraphRAGResponse> {
+    const startTime = Date.now();
+    const includeStats = options?.includeStats || false;
+    
     const maxDepth = options?.maxDepth ? Math.floor(options.maxDepth) : 2;
     const limit = options?.limit ? Math.floor(options.limit) : 50;
     const scopeId = this.scope?.id;
     const strategy = options?.strategy || 'both'; // Default to 'both'
+    // Default similarity threshold: 0.7 for better relevance (was 0.5, too permissive)
+    const similarityThreshold = options?.similarityThreshold ?? 0.7;
 
+    const searchStartTime = Date.now();
     const queryEmbedding = await this.embeddings.generateEmbedding(query);
     let documents: Document[] = [];
     let entities: Entity[] = [];
@@ -85,15 +198,24 @@ export class Akasha {
 
     // Step 1: Search documents and/or entities based on strategy
     const contexts = options?.contexts;
+    const validAt = options?.validAt 
+      ? (typeof options.validAt === 'string' ? options.validAt : options.validAt.toISOString())
+      : undefined;
     
     if (strategy === 'documents' || strategy === 'both') {
       documents = await this.neo4j.findDocumentsByVector(
         queryEmbedding,
         10,
-        0.5,
+        similarityThreshold,
         scopeId,
-        contexts
+        contexts,
+        validAt
       );
+      // Filter documents to ensure they meet the threshold (double-check)
+      documents = documents.filter((d) => {
+        const similarity = d.properties._similarity as number | undefined;
+        return similarity !== undefined && similarity >= similarityThreshold;
+      });
       documentIds = documents.map((d) => d.id);
     }
 
@@ -101,45 +223,66 @@ export class Akasha {
       entities = await this.neo4j.findEntitiesByVector(
         queryEmbedding,
         10,
-        0.5,
+        similarityThreshold,
         scopeId,
-        contexts
+        contexts,
+        validAt
       );
+      // Filter entities to ensure they meet the threshold (double-check)
+      entities = entities.filter((e) => {
+        const similarity = e.properties._similarity as number | undefined;
+        return similarity !== undefined && similarity >= similarityThreshold;
+      });
       entityIds = entities.map((e) => e.id);
     }
 
     // If searching documents, also get entities connected to those documents
+    // Only retrieve entities from documents that passed the similarity threshold
     if (documents.length > 0) {
       // Get entities connected to found documents via CONTAINS_ENTITY
+      // Only query for entities from documents that are actually relevant (passed threshold)
       const session = this.neo4j.getSession();
       try {
-        const docIdsList = documentIds.map(id => neo4j.int(id).toString()).join(', ');
-        let docQuery = `
-          MATCH (d:Document)-[:CONTAINS_ENTITY]->(e:Entity)
-          WHERE id(d) IN [${docIdsList}]
-        `;
-        
-        if (scopeId) {
-          docQuery += ` AND d.scopeId = $scopeId AND e.scopeId = $scopeId`;
-        }
-        
-        docQuery += `
-          RETURN DISTINCT id(e) as id, labels(e) as labels, properties(e) as properties
-        `;
+        // Only include document IDs that passed the similarity threshold
+        // (documents array is already filtered above, but double-check)
+        const relevantDocIds = documents
+          .filter((d) => {
+            const similarity = d.properties._similarity as number | undefined;
+            return similarity !== undefined && similarity >= similarityThreshold;
+          })
+          .map((d) => d.id);
 
-        const docResult = await session.run(docQuery, scopeId ? { scopeId } : {});
-        const docEntities = docResult.records.map((record: any) => ({
-          id: record.get('id').toString(),
-          label: record.get('labels')[0] || 'Unknown',
-          properties: record.get('properties') || {},
-        }));
+        if (relevantDocIds.length === 0) {
+          // No relevant documents, skip entity retrieval
+        } else {
+          const docIdsList = relevantDocIds.map(id => neo4j.int(id).toString()).join(', ');
+          let docQuery = `
+            MATCH (d:Document)-[:CONTAINS_ENTITY]->(e:Entity)
+            WHERE id(d) IN [${docIdsList}]
+          `;
+          
+          if (scopeId) {
+            docQuery += ` AND d.scopeId = $scopeId AND e.scopeId = $scopeId`;
+          }
+          
+          docQuery += `
+            RETURN DISTINCT id(e) as id, labels(e) as labels, properties(e) as properties
+          `;
 
-        // Merge with existing entities (avoid duplicates)
-        const existingEntityIds = new Set(entities.map(e => e.id));
-        for (const docEntity of docEntities) {
-          if (!existingEntityIds.has(docEntity.id)) {
-            entities.push(docEntity);
-            entityIds.push(docEntity.id);
+          const docResult = await session.run(docQuery, scopeId ? { scopeId } : {});
+          const docEntities = docResult.records.map((record: any) => ({
+            id: record.get('id').toString(),
+            label: record.get('labels')[0] || 'Unknown',
+            properties: record.get('properties') || {},
+          }));
+
+          // Merge with existing entities (avoid duplicates)
+          const existingEntityIds = new Set(entities.map(e => e.id));
+          for (const docEntity of docEntities) {
+            if (!existingEntityIds.has(docEntity.id)) {
+              entities.push(docEntity);
+              entityIds.push(docEntity.id);
+            }
           }
         }
       } catch (error) {
@@ -161,7 +304,11 @@ export class Akasha {
       };
     }
 
+    const searchEndTime = Date.now();
+    const searchTimeMs = searchEndTime - searchStartTime;
+
     // Step 2: Retrieve subgraph starting from found entities
+    const subgraphStartTime = Date.now();
     const entityLabels = [...new Set(entities.map((e) => e.label))];
     const subgraph = await this.neo4j.retrieveSubgraph(
       entityLabels,
@@ -171,16 +318,21 @@ export class Akasha {
       entityIds.length > 0 ? entityIds : undefined,
       scopeId
     );
+    const subgraphEndTime = Date.now();
+    const subgraphRetrievalTimeMs = subgraphEndTime - subgraphStartTime;
 
     // Step 3: Format graph context for LLM
     const context = this.formatGraphContext(subgraph, documents);
 
     // Step 4: Generate response using LLM
+    const llmStartTime = Date.now();
     const answer = await this.embeddings.generateResponse(
       query,
       context.summary,
       'You are a helpful assistant that answers questions based on knowledge graph context. Use the provided graph structure to give accurate, contextual answers.'
     );
+    const llmEndTime = Date.now();
+    const llmGenerationTimeMs = llmEndTime - llmStartTime;
 
     // Scrub embeddings unless explicitly requested
     const scrubbedData = options?.includeEmbeddings
@@ -197,7 +349,10 @@ export class Akasha {
           return { ...doc, properties: props };
         });
 
-    return {
+    const endTime = Date.now();
+    const totalTimeMs = endTime - startTime;
+
+    const response: GraphRAGResponse = {
       context: {
         documents: strategy === 'documents' || strategy === 'both' ? scrubbedDocuments : undefined,
         entities: scrubbedData.entities,
@@ -206,6 +361,22 @@ export class Akasha {
       },
       answer,
     };
+
+    // Add statistics if requested
+    if (includeStats) {
+      response.statistics = {
+        searchTimeMs,
+        subgraphRetrievalTimeMs,
+        llmGenerationTimeMs,
+        totalTimeMs,
+        documentsFound: documents.length,
+        entitiesFound: scrubbedData.entities.length,
+        relationshipsFound: scrubbedData.relationships.length,
+        strategy,
+      };
+    }
+
+    return response;
   }
 
   /**
@@ -221,6 +392,16 @@ export class Akasha {
     let document: Document;
     let documentCreated = 0;
     const contextId = options?.contextId || randomUUID();
+    const timestamp = new Date();
+    
+    // Generate system metadata (patternized approach)
+    const systemMetadata = generateSystemMetadata({
+      scopeId,
+      contextId,
+      timestamp,
+      validFrom: options?.validFrom,
+      validTo: options?.validTo,
+    });
     
     const existingDocument = await this.neo4j.findDocumentByText(text, scopeId);
     if (existingDocument) {
@@ -228,14 +409,14 @@ export class Akasha {
       document = await this.neo4j.updateDocumentContextIds(existingDocument.id, contextId);
       documentCreated = 0;
     } else {
-      // Create new document node with contextIds array
+      // Create new document node with system metadata
       const documentEmbedding = await this.embeddings.generateEmbedding(text);
       
       document = await this.neo4j.createDocument({
         properties: {
           text,
-          scopeId,
-          contextIds: [contextId],
+          scopeId, // Ensure scopeId is always included
+          ...systemMetadata,
           // Keep contextId for backward compatibility
           contextId,
         },
@@ -263,20 +444,19 @@ export class Akasha {
           createdEntities.push(updatedEntity);
           entityNameToIdMap.set(entityName, updatedEntity.id);
         } else {
-          // Create new entity with contextIds array
+          // Create new entity with system metadata
           const entityText = generateEntityText(extractedEntity);
           const entityEmbedding = await this.embeddings.generateEmbedding(entityText);
           
-          const entityWithScope = {
+          const entityWithMetadata = {
             ...extractedEntity,
             properties: {
               ...extractedEntity.properties,
-              scopeId,
-              contextIds: [contextId],
+              ...systemMetadata,
             },
           };
           
-          const newEntity = await this.neo4j.createEntities([entityWithScope], [entityEmbedding]);
+          const newEntity = await this.neo4j.createEntities([entityWithMetadata], [entityEmbedding]);
           createdEntities.push(newEntity[0]);
           entityNameToIdMap.set(entityName, newEntity[0].id);
         }
@@ -336,7 +516,7 @@ export class Akasha {
         type: rel.type,
         properties: {
           ...rel.properties,
-          scopeId, // Add scopeId to relationship properties
+          ...systemMetadata, // Add system metadata to relationship properties
         },
       });
     }
@@ -643,5 +823,296 @@ export class Akasha {
     const summary = `Knowledge Graph Context:\n\n${summaryParts.join('\n\n')}`;
 
     return { summary };
+  }
+
+  /**
+   * Learn from multiple texts in batch
+   */
+  async learnBatch(
+    items: string[] | BatchLearnItem[],
+    options?: BatchLearnOptions
+  ): Promise<BatchLearnResult> {
+    const scopeId = this.scope?.id;
+    if (!scopeId) {
+      throw new Error('Scope is required for learning. Please configure a scope when creating Akasha instance.');
+    }
+
+    // Normalize items to BatchLearnItem format
+    const normalizedItems: BatchLearnItem[] = items.map((item) => {
+      if (typeof item === 'string') {
+        return {
+          text: item,
+          contextName: options?.contextName,
+          validFrom: options?.validFrom,
+          validTo: options?.validTo,
+        };
+      }
+      return {
+        ...item,
+        contextName: item.contextName || options?.contextName,
+        validFrom: item.validFrom ?? options?.validFrom,
+        validTo: item.validTo ?? options?.validTo,
+      };
+    });
+
+    const results: ExtractResult[] = [];
+    const errors: Array<{ index: number; text: string; error: string }> = [];
+    const onProgress = options?.onProgress;
+    const total = normalizedItems.length;
+
+    // Track timing for estimated time remaining
+    const startTime = Date.now();
+    const itemTimes: number[] = [];
+
+    // Helper to truncate text
+    const truncateText = (text: string, maxLength: number = 200): string => {
+      if (text.length <= maxLength) {
+        return text;
+      }
+      return text.substring(0, maxLength) + '...';
+    };
+
+    // Helper to calculate estimated time remaining
+    const calculateEstimatedTime = (): number | undefined => {
+      if (itemTimes.length === 0) {
+        return undefined;
+      }
+      const avgTimePerItem = itemTimes.reduce((sum, time) => sum + time, 0) / itemTimes.length;
+      const remainingItems = total - (results.length + errors.length);
+      return Math.round(avgTimePerItem * remainingItems);
+    };
+
+    // Process each item
+    for (let i = 0; i < normalizedItems.length; i++) {
+      const item = normalizedItems[i];
+      const itemStartTime = Date.now();
+
+      try {
+        const learnOptions: LearnOptions = {
+          contextName: item.contextName,
+          contextId: item.contextId,
+          validFrom: item.validFrom,
+          validTo: item.validTo,
+          includeEmbeddings: options?.includeEmbeddings,
+        };
+        const result = await this.learn(item.text, learnOptions);
+        results.push(result);
+
+        // Track timing
+        const itemTime = Date.now() - itemStartTime;
+        itemTimes.push(itemTime);
+
+        // Call progress callback after success
+        if (onProgress) {
+          const progress = {
+            current: i,
+            total,
+            completed: results.length,
+            failed: errors.length,
+            currentText: truncateText(item.text),
+            estimatedTimeRemainingMs: calculateEstimatedTime(),
+          };
+          await onProgress(progress);
+        }
+      } catch (error) {
+        errors.push({
+          index: i,
+          text: item.text,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+
+        // Track timing (even for failures)
+        const itemTime = Date.now() - itemStartTime;
+        itemTimes.push(itemTime);
+
+        // Call progress callback after failure
+        if (onProgress) {
+          const progress = {
+            current: i,
+            total,
+            completed: results.length,
+            failed: errors.length,
+            currentText: truncateText(item.text),
+            estimatedTimeRemainingMs: calculateEstimatedTime(),
+          };
+          await onProgress(progress);
+        }
+      }
+    }
+
+    // Aggregate statistics
+    const summary = {
+      total: normalizedItems.length,
+      succeeded: results.length,
+      failed: errors.length,
+      totalDocumentsCreated: results.reduce((sum, r) => sum + r.created.document, 0),
+      totalDocumentsReused: results.reduce((sum, r) => sum + (r.created.document === 0 ? 1 : 0), 0),
+      totalEntitiesCreated: results.reduce((sum, r) => sum + r.created.entities, 0),
+      totalRelationshipsCreated: results.reduce((sum, r) => sum + r.created.relationships, 0),
+    };
+
+    return {
+      results,
+      summary,
+      ...(errors.length > 0 ? { errors } : {}),
+    };
+  }
+
+  /**
+   * Check health status of Neo4j and OpenAI services
+   */
+  async healthCheck(): Promise<HealthStatus> {
+    const timestamp = new Date().toISOString();
+    const health: HealthStatus = {
+      status: 'healthy',
+      neo4j: {
+        connected: false,
+      },
+      openai: {
+        available: false,
+      },
+      timestamp,
+    };
+
+    // Check Neo4j
+    try {
+      const session = this.neo4j.getSession();
+      try {
+        await session.run('RETURN 1');
+        health.neo4j.connected = true;
+      } finally {
+        await session.close();
+      }
+    } catch (error) {
+      health.neo4j.connected = false;
+      health.neo4j.error = error instanceof Error ? error.message : 'Unknown error';
+    }
+
+    // Check OpenAI
+    try {
+      await this.embeddings.generateEmbedding('health check');
+      health.openai.available = true;
+    } catch (error) {
+      health.openai.available = false;
+      health.openai.error = error instanceof Error ? error.message : 'Unknown error';
+    }
+
+    // Determine overall status
+    if (!health.neo4j.connected && !health.openai.available) {
+      health.status = 'unhealthy';
+    } else if (!health.neo4j.connected || !health.openai.available) {
+      health.status = 'degraded';
+    }
+
+    return health;
+  }
+
+  /**
+   * Delete entity by ID (cascade delete relationships)
+   */
+  async deleteEntity(entityId: string): Promise<DeleteResult> {
+    const scopeId = this.scope?.id;
+    return await this.neo4j.deleteEntity(entityId, scopeId);
+  }
+
+  /**
+   * Delete relationship by ID
+   */
+  async deleteRelationship(relationshipId: string): Promise<DeleteResult> {
+    const scopeId = this.scope?.id;
+    return await this.neo4j.deleteRelationship(relationshipId, scopeId);
+  }
+
+  /**
+   * Delete document by ID (cascade delete CONTAINS_ENTITY relationships)
+   */
+  async deleteDocument(documentId: string): Promise<DeleteResult> {
+    const scopeId = this.scope?.id;
+    return await this.neo4j.deleteDocument(documentId, scopeId);
+  }
+
+  /**
+   * Find entity by ID
+   */
+  async findEntity(entityId: string): Promise<Entity | null> {
+    const scopeId = this.scope?.id;
+    return await this.neo4j.findEntityById(entityId, scopeId);
+  }
+
+  /**
+   * Find relationship by ID
+   */
+  async findRelationship(relationshipId: string): Promise<Relationship | null> {
+    const scopeId = this.scope?.id;
+    return await this.neo4j.findRelationshipById(relationshipId, scopeId);
+  }
+
+  /**
+   * Find document by ID
+   */
+  async findDocument(documentId: string): Promise<Document | null> {
+    const scopeId = this.scope?.id;
+    return await this.neo4j.findDocumentById(documentId, scopeId);
+  }
+
+  /**
+   * Update entity properties
+   */
+  async updateEntity(entityId: string, options: UpdateEntityOptions): Promise<Entity> {
+    const scopeId = this.scope?.id;
+    return await this.neo4j.updateEntity(entityId, options.properties || {}, scopeId);
+  }
+
+  /**
+   * Update relationship properties
+   */
+  async updateRelationship(relationshipId: string, options: UpdateRelationshipOptions): Promise<Relationship> {
+    const scopeId = this.scope?.id;
+    return await this.neo4j.updateRelationship(relationshipId, options.properties || {}, scopeId);
+  }
+
+  /**
+   * Update document properties
+   */
+  async updateDocument(documentId: string, options: UpdateDocumentOptions): Promise<Document> {
+    const scopeId = this.scope?.id;
+    return await this.neo4j.updateDocument(documentId, options.properties || {}, scopeId);
+  }
+
+  /**
+   * List entities with optional filtering and pagination
+   */
+  async listEntities(options?: ListEntitiesOptions): Promise<Entity[]> {
+    const scopeId = this.scope?.id;
+    const limit = options?.limit ?? 100;
+    const offset = options?.offset ?? 0;
+    return await this.neo4j.listEntities(options?.label, limit, offset, scopeId);
+  }
+
+  /**
+   * List relationships with optional filtering and pagination
+   */
+  async listRelationships(options?: ListRelationshipsOptions): Promise<Relationship[]> {
+    const scopeId = this.scope?.id;
+    const limit = options?.limit ?? 100;
+    const offset = options?.offset ?? 0;
+    return await this.neo4j.listRelationships(
+      options?.type,
+      options?.fromId,
+      options?.toId,
+      limit,
+      offset,
+      scopeId
+    );
+  }
+
+  /**
+   * List documents with optional pagination
+   */
+  async listDocuments(options?: ListDocumentsOptions): Promise<Document[]> {
+    const scopeId = this.scope?.id;
+    const limit = options?.limit ?? 100;
+    const offset = options?.offset ?? 0;
+    return await this.neo4j.listDocuments(limit, offset, scopeId);
   }
 }

@@ -104,6 +104,11 @@ function EntityCard({ entity }: { entity: Entity }) {
     ([key]) => !internalKeys.includes(key)
   );
   
+  // Extract temporal metadata for display
+  const recordedAt = entity.properties._recordedAt as string | undefined;
+  const validFrom = entity.properties._validFrom as string | undefined;
+  const validTo = entity.properties._validTo as string | undefined;
+  
   // Get similarity score if available (from vector search)
   const similarity = entity.properties._similarity as number | undefined;
   const hasEmbedding = entity.properties.embedding !== undefined;
@@ -124,6 +129,30 @@ function EntityCard({ entity }: { entity: Entity }) {
           </span>
         )}
       </div>
+      {(recordedAt || validFrom || validTo) && (
+        <div className="temporal-metadata">
+          {recordedAt && (
+            <div className="temporal-badge" title="When this fact was recorded">
+              📅 Recorded: {new Date(recordedAt).toLocaleString()}
+            </div>
+          )}
+          {validFrom && (
+            <div className="temporal-badge" title="When this fact becomes valid">
+              ✅ Valid from: {new Date(validFrom).toLocaleString()}
+            </div>
+          )}
+          {validTo && (
+            <div className="temporal-badge" title="When this fact expires">
+              ⏰ Valid until: {new Date(validTo).toLocaleString()}
+            </div>
+          )}
+          {!validTo && validFrom && (
+            <div className="temporal-badge" title="This fact is ongoing (no expiration)">
+              ♾️ Ongoing
+            </div>
+          )}
+        </div>
+      )}
       {displayProperties.length > 0 && (
         <div className="entity-properties">
           {displayProperties.map(([key, value]) => (
@@ -170,18 +199,52 @@ function DocumentCard({ document }: { document: Document }) {
   const preview = text.length > previewLength ? text.substring(0, previewLength) + '...' : text;
   const hasMore = text.length > previewLength;
   const [expanded, setExpanded] = useState(false);
+  
+  // Extract temporal metadata for display
+  const recordedAt = document.properties._recordedAt as string | undefined;
+  const validFrom = document.properties._validFrom as string | undefined;
+  const validTo = document.properties._validTo as string | undefined;
 
   return (
     <div className="document-card">
-      <div className="document-header">
-        <span className="document-label">📄 Document</span>
-        <span className="document-id">#{document.id}</span>
-        {document.properties.contextId && (
-          <span className="context-badge" title={`Context ID: ${document.properties.contextId}`}>
-            Context
-          </span>
-        )}
-      </div>
+            <div className="document-header">
+              <span className="document-label">📄 Document</span>
+              <span className="document-id">#{document.id}</span>
+              {document.properties.contextIds && document.properties.contextIds.length > 0 && (
+                <span className="context-badge" title={`Context IDs: ${document.properties.contextIds.join(', ')}`}>
+                  {document.properties.contextIds.length} Context{document.properties.contextIds.length > 1 ? 's' : ''}
+                </span>
+              )}
+              {document.properties.contextId && !document.properties.contextIds && (
+                <span className="context-badge" title={`Context ID: ${document.properties.contextId}`}>
+                  Context
+                </span>
+              )}
+            </div>
+            {(recordedAt || validFrom || validTo) && (
+              <div className="temporal-metadata">
+                {recordedAt && (
+                  <div className="temporal-badge" title="When this document was recorded">
+                    📅 Recorded: {new Date(recordedAt).toLocaleString()}
+                  </div>
+                )}
+                {validFrom && (
+                  <div className="temporal-badge" title="When this document becomes valid">
+                    ✅ Valid from: {new Date(validFrom).toLocaleString()}
+                  </div>
+                )}
+                {validTo && (
+                  <div className="temporal-badge" title="When this document expires">
+                    ⏰ Valid until: {new Date(validTo).toLocaleString()}
+                  </div>
+                )}
+                {!validTo && validFrom && (
+                  <div className="temporal-badge" title="This document is ongoing (no expiration)">
+                    ♾️ Ongoing
+                  </div>
+                )}
+              </div>
+            )}
       <div className="document-text">
         {expanded ? (
           <div>

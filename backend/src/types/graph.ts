@@ -18,7 +18,8 @@ export interface Document {
   properties: {
     text: string;
     scopeId: string;
-    contextId?: string;
+    contextIds?: string[]; // Array of context IDs this document belongs to
+    contextId?: string; // DEPRECATED: Use contextIds instead (for backward compatibility)
     metadata?: Record<string, unknown>;
   };
 }
@@ -38,6 +39,7 @@ export interface GraphRAGQuery {
   limit?: number;
   strategy?: QueryStrategy; // Query strategy: 'documents', 'entities', or 'both' (default: 'both')
   includeEmbeddings?: boolean; // Include embeddings in returned entities/relationships (default: false)
+  validAt?: Date | string; // Only return facts valid at this time (optional)
 }
 
 export interface GraphRAGResponse {
@@ -100,6 +102,8 @@ export interface BatchCreateRelationshipsResponse {
 
 export interface ExtractTextRequest {
   text: string;
+  validFrom?: Date | string; // When fact becomes valid (optional, defaults to now)
+  validTo?: Date | string; // When fact becomes invalid (optional, no expiration if omitted)
 }
 
 export interface ExtractTextResponse {

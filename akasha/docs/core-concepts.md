@@ -133,6 +133,54 @@ This design choice prioritizes:
 
 The trade-off is that all scopes share the same database connection. For stronger isolation, you could use separate Akasha instances with different Neo4j databases.
 
+## Temporal Tracking
+
+Akasha automatically tracks temporal metadata for all learned facts, enabling point-in-time queries and historical reasoning.
+
+**System Metadata Fields:**
+- `_recordedAt`: ISO timestamp when the fact was recorded in the system (always automatic)
+- `_validFrom`: ISO timestamp when the fact becomes valid (defaults to `_recordedAt` if not specified)
+- `_validTo`: ISO timestamp when the fact becomes invalid (optional; if omitted, the fact is ongoing)
+
+**Temporal Learning:**
+When you call `learn()`, you can optionally specify `validFrom` and `validTo` to indicate when a fact was or will be true:
+
+```typescript
+// Fact valid for a specific period
+await kg.learn('Alice worked for Acme Corp.', {
+  validFrom: new Date('2024-01-01'),
+  validTo: new Date('2024-12-31'),
+});
+
+// Ongoing fact (no expiration)
+await kg.learn('Bob works for TechCorp.', {
+  validFrom: new Date('2024-01-01'),
+  // No validTo = ongoing
+});
+```
+
+**Temporal Querying:**
+You can query facts valid at a specific point in time using `validAt`:
+
+```typescript
+// Only return facts valid on June 1, 2024
+const result = await kg.ask('Who works for companies?', {
+  validAt: new Date('2024-06-01'),
+});
+```
+
+This enables scenarios like:
+- "What did we know about Alice in Q2 2024?"
+- "Who was working at the company on this date?"
+- "What facts were true during this period?"
+
+**Default Behavior:**
+- If `validFrom` is not provided, it defaults to `_recordedAt` (current time)
+- If `validTo` is not provided, the fact is considered ongoing (no expiration)
+- If `validAt` is not provided in queries, all facts are returned regardless of validity period
+
+This temporal tracking aligns with Akasha's "map is not the territory" axiom: facts are recorded at a specific time (`_recordedAt`), but they may represent knowledge that was true at different times (`_validFrom`/`_validTo`).
+
 ---
 
 **Next**: Read [API Reference](./api-reference.md) for detailed method documentation, or [Ontologies](./ontologies.md) to customize extraction behavior.

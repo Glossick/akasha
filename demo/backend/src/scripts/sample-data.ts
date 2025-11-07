@@ -1,6 +1,6 @@
 /**
  * Script to create sample knowledge graph data in Neo4j
- * Run with: bun run backend/src/scripts/sample-data.ts
+ * Run with: bun run demo/backend/src/scripts/sample-data.ts
  */
 
 import { Neo4jService } from '../services/neo4j.service';
