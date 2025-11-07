@@ -183,7 +183,87 @@ async function runIntegrationTests() {
     await kg2.cleanup();
     await kg.cleanup();
 
-    console.log('5️⃣  Testing template system...');
+    console.log('5️⃣  Testing context filtering...');
+    const contextTestScope: Scope = {
+      id: `context-filter-test-${Date.now()}`,
+      type: 'test',
+      name: 'Context Filter Test Scope',
+    };
+
+    const kgContext = akasha({
+      neo4j: {
+        uri: process.env.NEO4J_URI!,
+        user: process.env.NEO4J_USER!,
+        password: process.env.NEO4J_PASSWORD!,
+      },
+      scope: contextTestScope,
+      openai: {
+        apiKey: process.env.OPENAI_API_KEY!,
+      },
+    });
+
+    await kgContext.initialize();
+
+    // Learn data in different contexts
+    const learn1 = await kgContext.learn('Alice works for Acme Corp as a software engineer.', {
+      contextId: 'context-1',
+      contextName: 'Context 1',
+    });
+
+    const learn2 = await kgContext.learn('Bob works for TechCorp as a designer.', {
+      contextId: 'context-2',
+      contextName: 'Context 2',
+    });
+
+    const learn3 = await kgContext.learn('Charlie works for StartupCo as a manager.', {
+      contextId: 'context-3',
+      contextName: 'Context 3',
+    });
+
+    console.log(`   ✅ Created 3 contexts with different data`);
+    console.log(`   ✅ Document 1 has contextIds: ${learn1.document.properties.contextIds?.join(', ') || 'none'}`);
+    console.log(`   ✅ Document 2 has contextIds: ${learn2.document.properties.contextIds?.join(', ') || 'none'}`);
+    console.log(`   ✅ Document 3 has contextIds: ${learn3.document.properties.contextIds?.join(', ') || 'none'}`);
+
+    // Query with context 1 only
+    const contextResult1 = await kgContext.ask('Who works for companies?', {
+      contexts: ['context-1'],
+    });
+    const hasAlice = contextResult1.context.entities.some(e => 
+      (e.properties.name as string)?.toLowerCase().includes('alice')
+    );
+    console.log(`   ${hasAlice ? '✅' : '❌'} Context 1 filter: found Alice`);
+
+    // Query with contexts 1 and 2
+    const contextResult2 = await kgContext.ask('Who works for companies?', {
+      contexts: ['context-1', 'context-2'],
+    });
+    const hasAliceInBoth = contextResult2.context.entities.some(e => 
+      (e.properties.name as string)?.toLowerCase().includes('alice')
+    );
+    const hasBobInBoth = contextResult2.context.entities.some(e => 
+      (e.properties.name as string)?.toLowerCase().includes('bob')
+    );
+    console.log(`   ${hasAliceInBoth && hasBobInBoth ? '✅' : '❌'} Multiple contexts filter: found Alice and Bob`);
+
+    // Query without contexts (should find all)
+    const contextResult3 = await kgContext.ask('Who works for companies?');
+    const hasAll = contextResult3.context.entities.length >= 3;
+    console.log(`   ${hasAll ? '✅' : '❌'} No context filter: found all entities (${contextResult3.context.entities.length})`);
+
+    // Test context append (learn same text with different context)
+    const learn4 = await kgContext.learn('Alice works for Acme Corp.', {
+      contextId: 'context-4',
+      contextName: 'Context 4',
+    });
+    const hasBothContexts = learn4.document.properties.contextIds?.includes('context-1') && 
+                            learn4.document.properties.contextIds?.includes('context-4');
+    console.log(`   ${hasBothContexts ? '✅' : '❌'} Context append: document has both context-1 and context-4`);
+    console.log(`   ✅ Context filtering verified\n`);
+
+    await kgContext.cleanup();
+
+    console.log('6️⃣  Testing template system...');
     const templateTestScope: Scope = {
       id: `template-test-${Date.now()}`,
       type: 'test',

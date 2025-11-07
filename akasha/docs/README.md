@@ -16,7 +16,7 @@ Akasha is a minimal, developer-friendly GraphRAG library that transforms natural
 
 ## What is Akasha?
 
-Akasha bridges the gap between unstructured text and structured knowledge. It extracts entities and relationships from natural language, stores them in a graph database, and enables semantic queries that traverse those relationships.
+Akasha is a GraphRAG (Graph Retrieval-Augmented Generation) library that extracts entities and relationships from natural language, stores them in a graph database, and enables semantic queries that traverse those relationships.
 
 The name "Akasha" derives from Sanskrit, meaning "aether" or "space"—the foundational essence that connects all things. In this library, Akasha serves as the connective medium between language and knowledge, between questions and answers, between data and understanding.
 

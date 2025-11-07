@@ -22,12 +22,16 @@ const kg = akasha({
 
 await kg.initialize();
 
-// Learn
-await kg.learn('Alice works for Acme Corp. Bob works for TechCorp.');
+// Learn (creates document node, extracts entities)
+const learnResult = await kg.learn('Alice works for Acme Corp. Bob works for TechCorp.');
+console.log(`Document: ${learnResult.document.id}`);
+console.log(`Created ${learnResult.created.entities} entities`);
 
-// Query
+// Query (default strategy: 'both' - searches documents and entities)
 const result = await kg.ask('Who works for Acme Corp?');
 console.log(result.answer);
+console.log(`Found ${result.context.documents?.length || 0} documents`);
+console.log(`Found ${result.context.entities.length} entities`);
 
 await kg.cleanup();
 ```
@@ -148,13 +152,43 @@ await kg.learn('Alice mentioned in the interview...', {
   contextId: 'interviews',
 });
 
-// Query specific context
+// Query specific context (strict filtering)
 const handbookAnswer = await kg.ask('What is company policy?', {
-  contexts: ['handbook'],
+  contexts: ['handbook'], // Only searches documents/entities with 'handbook' in contextIds
 });
 
-// Query all contexts
+// Query multiple contexts
+const multiContextAnswer = await kg.ask('What do we know about Alice?', {
+  contexts: ['handbook', 'interviews'], // Searches documents/entities with either contextId
+});
+
+// Query all contexts (no filter)
 const allAnswer = await kg.ask('What do we know about Alice?');
+```
+
+### Document Deduplication and Context Append
+
+```typescript
+// Learn text first time
+const result1 = await kg.learn('Alice works for Acme Corp.', {
+  contextId: 'handbook-1',
+});
+
+console.log(result1.created.document); // 1 (created)
+console.log(result1.document.properties.contextIds); // ['handbook-1']
+
+// Learn same text with different context
+const result2 = await kg.learn('Alice works for Acme Corp.', {
+  contextId: 'interviews-1',
+});
+
+console.log(result2.created.document); // 0 (reused/deduplicated)
+console.log(result2.document.id === result1.document.id); // true (same document)
+console.log(result2.document.properties.contextIds); // ['handbook-1', 'interviews-1']
+
+// Entity also accumulates contextIds
+const aliceEntity = result2.entities.find(e => e.properties.name === 'Alice');
+console.log(aliceEntity?.properties.contextIds); // ['handbook-1', 'interviews-1']
 ```
 
 ## Embedding Management
@@ -275,14 +309,37 @@ const deepResult = await kg.ask('Find all connections', {
   limit: 200,
 });
 
-// Context-specific query
+// Context-specific query (strict filtering)
 const contextResult = await kg.ask('What did we learn?', {
-  contexts: ['context-id-1', 'context-id-2'],
+  contexts: ['context-id-1', 'context-id-2'], // Only entities/documents with these contextIds
+});
+
+// Query strategy: documents only
+const docResult = await kg.ask('What documents mention companies?', {
+  strategy: 'documents', // Search document nodes first
+});
+
+// Query strategy: entities only (original behavior)
+const entityResult = await kg.ask('Who works for companies?', {
+  strategy: 'entities', // Search entity nodes only
+});
+
+// Query strategy: both (default)
+const bothResult = await kg.ask('What do we know about Alice?', {
+  strategy: 'both', // Search both documents and entities
 });
 
 // Include embeddings for analysis
 const withEmbeddings = await kg.ask('Analyze similarities', {
   includeEmbeddings: true,
+});
+
+// Combined: context filter + strategy + embeddings
+const combinedResult = await kg.ask('What did we learn from interviews?', {
+  contexts: ['interviews-1', 'interviews-2'],
+  strategy: 'both',
+  maxDepth: 3,
+  includeEmbeddings: false,
 });
 ```
 

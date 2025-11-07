@@ -83,7 +83,7 @@ This connects to Neo4j and ensures the vector index exists for semantic search.
 
 ### Learning from Text
 
-The `learn()` method extracts entities and relationships from natural language:
+The `learn()` method creates a document node, extracts entities and relationships from natural language, and links them together:
 
 ```typescript
 const result = await kg.learn(
@@ -93,11 +93,17 @@ const result = await kg.learn(
   }
 );
 
+console.log(`Document: ${result.document.id} (${result.created.document === 1 ? 'created' : 'reused'})`);
 console.log(`Created ${result.created.entities} entities`);
 console.log(`Created ${result.created.relationships} relationships`);
 ```
 
-The text is analyzed, entities are extracted (Alice, Bob, Acme Corp, TechCorp), relationships are identified (WORKS_FOR, KNOWS), and everything is stored in Neo4j with embeddings for semantic search.
+The process:
+1. **Document Creation**: The text is stored as a `Document` node (or reused if the same text already exists)
+2. **Entity Extraction**: Entities are extracted (Alice, Bob, Acme Corp, TechCorp)
+3. **Relationship Extraction**: Relationships are identified (WORKS_FOR, KNOWS)
+4. **Linking**: Entities are linked to the document via `CONTAINS_ENTITY` relationships
+5. **Storage**: Everything is stored in Neo4j with embeddings for semantic search
 
 ### Querying the Knowledge
 
@@ -109,6 +115,9 @@ const response = await kg.ask('What is the relationship between Alice and Bob?')
 console.log(response.answer);
 // "Alice and Bob know each other from college."
 
+console.log(response.context.documents);
+// Array of document nodes found (if strategy includes documents)
+
 console.log(response.context.entities);
 // Array of entities used to answer the question
 
@@ -116,12 +125,17 @@ console.log(response.context.relationships);
 // Array of relationships traversed
 ```
 
-The query process:
+The query process (default strategy: `'both'`):
 
-1. Finds relevant entities using vector similarity
-2. Retrieves the subgraph around those entities
-3. Formats the context for the LLM
-4. Generates an answer based on the graph structure
+1. Finds relevant documents and entities using vector similarity
+2. Retrieves the subgraph around those documents/entities
+3. Formats the context for the LLM (documents are prioritized since they contain full text)
+4. Generates an answer based on the graph structure and document content
+
+You can customize the query strategy:
+- `strategy: 'documents'` - Search document nodes first, then connected entities
+- `strategy: 'entities'` - Search entity nodes only (original behavior)
+- `strategy: 'both'` - Search both documents and entities (default)
 
 ## Cleanup
 
@@ -162,11 +176,14 @@ async function main() {
       { contextName: 'Example Context' }
     );
 
+    console.log(`Document: ${learnResult.document.id}`);
     console.log(`Learned: ${learnResult.created.entities} entities, ${learnResult.created.relationships} relationships`);
 
-    // Query
+    // Query (default: searches both documents and entities)
     const queryResult = await kg.ask('Who works for Acme Corp?');
     console.log(`Answer: ${queryResult.answer}`);
+    console.log(`Found ${queryResult.context.documents?.length || 0} documents`);
+    console.log(`Found ${queryResult.context.entities.length} entities`);
 
   } finally {
     await kg.cleanup();

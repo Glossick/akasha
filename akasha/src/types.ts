@@ -128,7 +128,8 @@ export interface Document {
   properties: {
     text: string; // Full text content
     scopeId: string;
-    contextId?: string; // Optional link to Context metadata
+    contextIds?: string[]; // Array of context IDs this document belongs to
+    contextId?: string; // DEPRECATED: Use contextIds instead (for backward compatibility)
     metadata?: Record<string, unknown>;
   };
 }
@@ -139,7 +140,9 @@ export interface Document {
 export interface Entity {
   id: string;
   label: string;
-  properties: Record<string, unknown>;
+  properties: Record<string, unknown> & {
+    contextIds?: string[]; // Array of context IDs this entity belongs to
+  };
 }
 
 /**

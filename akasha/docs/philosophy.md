@@ -16,17 +16,17 @@ Akasha recognizes that knowledge emerges from structure. An entity alone is data
 
 ## Semantic Over Syntax
 
-Most search systems match strings. You search for "Alice" and find documents containing "Alice". This works, but it's brittle. Misspellings break it. Synonyms break it. Context breaks it.
+Many search systems match strings. You search for "Alice" and find documents containing "Alice". This works, but it's brittle. Misspellings break it. Synonyms break it. Context breaks it.
 
-Akasha searches by meaning. The query "Who collaborates with Alice?" finds entities related to Alice semantically, even if the exact phrase "collaborates with" never appears in the stored text. This is possible because embeddings capture semantic similarity—texts with similar meanings have similar vector representations.
+Akasha uses semantic search via embeddings. The query "Who collaborates with Alice?" finds entities related to Alice semantically, even if the exact phrase "collaborates with" never appears in the stored text. This is possible because embeddings capture semantic similarity—texts with similar meanings have similar vector representations.
 
-This shift from syntax to semantics enables more natural interaction. You ask questions as you would ask a colleague, not as you would query a database.
+This semantic approach enables more natural interaction. You ask questions as you would ask a colleague, not as you would query a database.
 
 ## Ontological Flexibility
 
 Different domains require different ways of understanding. A software project might think in terms of processes: development, testing, deployment. A product catalog might think in terms of entities: products, categories, suppliers.
 
-Traditional systems force you into one ontological model. Akasha allows you to define your own. Through extraction prompt templates, you can implement substance ontology, process ontology, relational ontology, or domain-specific ontologies.
+Many GraphRAG systems use fixed ontological models. Akasha allows you to define your own through extraction prompt templates, enabling you to implement substance ontology, process ontology, relational ontology, or domain-specific ontologies.
 
 This flexibility acknowledges that reality resists single frameworks. What works for one domain may not work for another. Akasha provides the mechanism; you provide the perspective.
 
@@ -115,13 +115,11 @@ Several principles guide Akasha's design:
 
 **Extensibility**: The template system, scope system, and embedding system are all designed for extension. You can implement custom ontologies, multi-tenant patterns, and domain-specific behaviors.
 
-## The Future of Knowledge
+## GraphRAG as a Pattern
 
-Akasha represents a shift in how we think about knowledge systems. Traditional systems store facts; Akasha stores understanding. Traditional systems match strings; Akasha matches meanings. Traditional systems force one ontology; Akasha accommodates many.
+Akasha implements the GraphRAG pattern: extracting structured knowledge from text, storing it in a graph database, and using semantic search to retrieve relevant context for LLM-based question answering. This approach combines the benefits of structured knowledge graphs with the flexibility of semantic search.
 
-This shift enables new possibilities: semantic search over knowledge graphs, multi-tenant knowledge spaces, domain-specific ontologies, process-oriented knowledge representation. These are not just features—they are expressions of a different way of thinking about knowledge.
-
-Knowledge is not just data. It is structure, relationships, meaning. Akasha provides the tools to work with knowledge as it actually exists: connected, contextual, semantic.
+Key capabilities include: semantic search over knowledge graphs, multi-tenant knowledge spaces, domain-specific ontologies, and process-oriented knowledge representation. These features enable working with knowledge as it exists: connected, contextual, and semantic.
 
 ---
 

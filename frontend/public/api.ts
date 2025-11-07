@@ -1,9 +1,24 @@
 // API service for backend communication
 
+export type QueryStrategy = 'documents' | 'entities' | 'both';
+
 export interface GraphRAGQuery {
   query: string;
   maxDepth?: number;
   limit?: number;
+  strategy?: QueryStrategy; // Query strategy: 'documents', 'entities', or 'both' (default: 'both')
+  includeEmbeddings?: boolean; // Include embeddings in returned entities/relationships (default: false)
+}
+
+export interface Document {
+  id: string;
+  label: 'Document';
+  properties: {
+    text: string; // Full text content
+    scopeId: string;
+    contextId?: string; // Optional link to Context metadata
+    metadata?: Record<string, unknown>;
+  };
 }
 
 export interface Entity {
@@ -21,6 +36,7 @@ export interface Relationship {
 }
 
 export interface GraphContext {
+  documents?: Document[]; // Documents found (if strategy includes documents)
   entities: Entity[];
   relationships: Relationship[];
   summary: string;
@@ -205,10 +221,12 @@ export interface ExtractTextRequest {
 }
 
 export interface ExtractTextResponse {
+  document: Document; // The document node created/reused
   entities: Entity[];
   relationships: Relationship[];
   summary: string;
   created: {
+    document: number; // 0 if document already existed (deduplicated), 1 if created
     entities: number;
     relationships: number;
   };

@@ -94,12 +94,33 @@ function TextExtractionForm({ onExtracted, onError, isLoading = false }: TextExt
           </div>
           <div className="result-summary">
             <div className="result-stat">
+              <strong>{extractionResult.created.document === 1 ? 'Created' : 'Reused'}</strong> document
+              {extractionResult.created.document === 0 && (
+                <span className="deduplication-badge" title="Document was deduplicated - same text already exists in graph">
+                  🔄 Deduplicated
+                </span>
+              )}
+            </div>
+            <div className="result-stat">
               <strong>{extractionResult.created.entities}</strong> entities created
             </div>
             <div className="result-stat">
               <strong>{extractionResult.created.relationships}</strong> relationships created
             </div>
           </div>
+          {extractionResult.document && (
+            <div className="document-info">
+              <h4>Document:</h4>
+              <div className="document-preview">
+                <span className="document-id">ID: {extractionResult.document.id}</span>
+                <pre className="document-text-preview">
+                  {extractionResult.document.properties.text.length > 200
+                    ? extractionResult.document.properties.text.substring(0, 200) + '...'
+                    : extractionResult.document.properties.text}
+                </pre>
+              </div>
+            </div>
+          )}
           <details className="result-details">
             <summary>View Details</summary>
             <div className="details-content">

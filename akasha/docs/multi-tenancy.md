@@ -56,7 +56,7 @@ This means:
 
 ## Contexts Within Scopes
 
-A context represents a knowledge space within a scope. Each text you learn from creates a context. Multiple contexts can exist in a scope:
+A context represents a knowledge space within a scope. Each text you learn from is associated with a context. Multiple contexts can exist in a scope:
 
 ```typescript
 // Context 1: Company Handbook
@@ -74,20 +74,53 @@ await kg.learn('Alice mentioned she enjoys...', {
 
 Both contexts exist within the same scope but represent different sources of knowledge.
 
-## Querying by Context
-
-You can filter queries to specific contexts:
+**Important**: Documents and entities can belong to multiple contexts simultaneously. When you learn the same text with different `contextId` values, the document is reused and the new `contextId` is appended to its `contextIds` array. Similarly, entities are reused across documents and accumulate `contextIds` as they appear in different contexts.
 
 ```typescript
-const result = await kg.ask('What are our company values?', {
-  contexts: ['handbook-1'], // Only search in this context
+// Learn same text with different contexts
+await kg.learn('Alice works for Acme Corp.', {
+  contextId: 'handbook-1',
 });
+
+await kg.learn('Alice works for Acme Corp.', {
+  contextId: 'interviews-1', // Same text, different context
+});
+
+// The document node is reused, and its contextIds array contains both 'handbook-1' and 'interviews-1'
+// The entity "Alice" also accumulates both contextIds
 ```
+
+## Querying by Context
+
+You can filter queries to specific contexts using strict filtering. When you specify `contexts`, only documents and entities that have at least one matching `contextId` in their `contextIds` array are included:
+
+```typescript
+// Query single context
+const result = await kg.ask('What are our company values?', {
+  contexts: ['handbook-1'], // Only search documents/entities with 'handbook-1' in contextIds
+});
+
+// Query multiple contexts
+const result2 = await kg.ask('What do we know about Alice?', {
+  contexts: ['handbook-1', 'interviews-1'], // Search documents/entities with either contextId
+});
+
+// Query without context filter (searches all)
+const result3 = await kg.ask('What do we know?'); // No context filter = searches all
+```
+
+**Strict Filtering**: The filtering is strict—an entity or document must have at least one of the specified `contextId` values in its `contextIds` array to be included. This means:
+- If an entity has `contextIds: ['handbook-1', 'interviews-1']` and you query with `contexts: ['handbook-1']`, it will be included
+- If an entity has `contextIds: ['handbook-1']` and you query with `contexts: ['interviews-1']`, it will NOT be included
+- If you don't specify `contexts`, all entities/documents are searched (no filtering)
+
+**Note**: For backward compatibility, entities/documents with `contextIds: null` (from older data created before context tracking) will match any context filter. However, all new documents and entities created via `learn()` will always have `contextIds` set.
 
 This enables scenarios like:
 - "Answer based only on the company handbook"
 - "What did we learn from the interviews?"
-- "Query across all project documentation"
+- "Query across multiple project documentation contexts"
+- "Find entities that appear in both handbook and interviews"
 
 ## Scope-Agnostic Mode
 

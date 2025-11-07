@@ -79,13 +79,18 @@ Queries the knowledge graph semantically and returns an answer with context.
 - `query: string` - Natural language question
 - `options.maxDepth?: number` - Maximum graph traversal depth (default: `2`)
 - `options.limit?: number` - Maximum entities to retrieve (default: `50`)
-- `options.contexts?: string[]` - Context IDs to filter by (optional)
+- `options.contexts?: string[]` - Context IDs to filter by (optional). When provided, only searches documents and entities that belong to at least one of the specified contexts. Uses strict filtering: entities/documents must have at least one matching contextId in their `contextIds` array.
+- `options.strategy?: QueryStrategy` - Query strategy: `'documents'`, `'entities'`, or `'both'` (default: `'both'`)
+  - `'documents'`: Searches only document nodes, then retrieves connected entities via graph traversal
+  - `'entities'`: Searches only entity nodes (original behavior)
+  - `'both'`: Searches both documents and entities, combining results
 - `options.includeEmbeddings?: boolean` - Include embeddings in response (default: `false`)
 
 **Returns:** `GraphRAGResponse`
 ```typescript
 {
   context: {
+    documents?: Document[]; // Documents found (if strategy includes documents)
     entities: Entity[];
     relationships: Relationship[];
     summary: string;
@@ -99,38 +104,51 @@ Queries the knowledge graph semantically and returns an answer with context.
 const result = await kg.ask('What is the relationship between Alice and Bob?', {
   maxDepth: 3,
   limit: 100,
+  strategy: 'both', // Search both documents and entities
+  contexts: ['handbook-1', 'interviews-1'], // Filter by specific contexts
 });
 
 console.log(result.answer);
-console.log(result.context.entities);
+console.log(result.context.documents); // Document nodes found
+console.log(result.context.entities); // Entity nodes found
 ```
 
 ---
 
 ### `learn(text: string, options?: LearnOptions): Promise<ExtractResult>`
 
-Extracts entities and relationships from natural language text and stores them in the knowledge graph.
+Extracts entities and relationships from natural language text and stores them in the knowledge graph. Creates a document node for the text (with deduplication), extracts entities and relationships, and links them together.
+
+**⚠️ Important**: A scope must be configured when creating the Akasha instance. The `learn()` method will throw an error if no scope is provided.
 
 **Parameters:**
 
 - `text: string` - Natural language text to extract from
 - `options.contextName?: string` - Name for the context (default: generated)
-- `options.contextId?: string` - ID for the context (default: generated UUID)
+- `options.contextId?: string` - ID for the context (default: generated UUID). If a document with the same text already exists, this contextId is appended to the document's `contextIds` array. Same for entities: if an entity already exists, the contextId is appended to its `contextIds` array.
 - `options.includeEmbeddings?: boolean` - Include embeddings in response (default: `false`)
 
 **Returns:** `ExtractResult`
 ```typescript
 {
-  context: Context;
+  context: Context; // Context metadata (id, scopeId, name, source)
+  document: Document; // The document node created/reused
   entities: Entity[];
   relationships: Relationship[];
   summary: string;
   created: {
+    document: number; // 0 if document already existed (deduplicated), 1 if created
     entities: number;
     relationships: number;
   };
 }
 ```
+
+**Document Deduplication:**
+If the same text is learned multiple times, Akasha reuses the existing document node and appends the new `contextId` to the document's `contextIds` array. This enables:
+- Efficient storage (no duplicate documents)
+- Multi-context tracking (same document can belong to multiple contexts)
+- Entity reuse across documents (entities are also deduplicated and can belong to multiple contexts)
 
 **Example:**
 ```typescript
@@ -142,8 +160,20 @@ const result = await kg.learn(
   }
 );
 
+console.log(`Document: ${result.document.id} (${result.created.document === 1 ? 'created' : 'reused'})`);
 console.log(`Created ${result.created.entities} entities`);
 console.log(`Created ${result.created.relationships} relationships`);
+
+// Learn same text again with different context
+const result2 = await kg.learn(
+  'Alice works for Acme Corp. Bob works for TechCorp.',
+  {
+    contextId: 'team-intro-2', // Different context
+  }
+);
+// result2.document.id === result.document.id (same document reused)
+// result2.created.document === 0 (document was deduplicated)
+// result2.document.properties.contextIds includes both 'team-intro-1' and 'team-intro-2'
 ```
 
 ---
@@ -193,6 +223,31 @@ interface Context {
 }
 ```
 
+### `Document`
+
+A first-class document node in the knowledge graph, representing the full text content.
+
+```typescript
+interface Document {
+  id: string;
+  label: 'Document';
+  properties: {
+    text: string; // Full text content
+    scopeId: string;
+    contextIds?: string[]; // Array of context IDs this document belongs to
+    contextId?: string; // DEPRECATED: Use contextIds instead (for backward compatibility)
+    metadata?: Record<string, unknown>;
+  };
+}
+```
+
+Documents are:
+- Created for each unique text learned
+- Deduplicated by text content (same text = same document node)
+- Linked to entities via `CONTAINS_ENTITY` relationships
+- Searchable via vector similarity search
+- Can belong to multiple contexts (via `contextIds` array)
+
 ### `Entity`
 
 A node in the knowledge graph.
@@ -201,9 +256,18 @@ A node in the knowledge graph.
 interface Entity {
   id: string;
   label: string;
-  properties: Record<string, unknown>;
+  properties: Record<string, unknown> & {
+    contextIds?: string[]; // Array of context IDs this entity belongs to
+  };
 }
 ```
+
+Entities:
+- Are extracted from document text
+- Are deduplicated by name (same entity name = same entity node)
+- Can belong to multiple contexts (via `contextIds` array)
+- Are linked to documents via `CONTAINS_ENTITY` relationships
+- Are searchable via vector similarity search
 
 ### `Relationship`
 
@@ -226,6 +290,7 @@ Response from `ask()` method.
 ```typescript
 interface GraphRAGResponse {
   context: {
+    documents?: Document[]; // Documents found (if strategy includes documents)
     entities: Entity[];
     relationships: Relationship[];
     summary: string;
@@ -234,22 +299,40 @@ interface GraphRAGResponse {
 }
 ```
 
+The `documents` array is included when:
+- `strategy` is `'documents'` or `'both'`
+- Documents are found via vector similarity search
+
 ### `ExtractResult`
 
 Response from `learn()` method.
 
 ```typescript
 interface ExtractResult {
-  context: Context;
+  context: Context; // Context metadata (id, scopeId, name, source)
+  document: Document; // The document node created/reused
   entities: Entity[];
   relationships: Relationship[];
   summary: string;
   created: {
+    document: number; // 0 if document already existed (deduplicated), 1 if created
     entities: number;
     relationships: number;
   };
 }
 ```
+
+### `QueryStrategy`
+
+Query strategy for `ask()` method.
+
+```typescript
+type QueryStrategy = 'documents' | 'entities' | 'both';
+```
+
+- `'documents'`: Search document nodes first, then retrieve connected entities
+- `'entities'`: Search entity nodes only (original behavior)
+- `'both'`: Search both documents and entities, combining results (default)
 
 ### `ExtractionPromptTemplate`
 

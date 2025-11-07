@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GraphRAGQuery } from '../api.ts';
+import type { GraphRAGQuery, QueryStrategy } from '../api.ts';
 
 interface QueryFormProps {
   onSubmit: (query: GraphRAGQuery) => void;
@@ -10,6 +10,8 @@ function QueryForm({ onSubmit, isLoading }: QueryFormProps) {
   const [query, setQuery] = useState('');
   const [maxDepth, setMaxDepth] = useState<number>(2);
   const [limit, setLimit] = useState<number>(50);
+  const [strategy, setStrategy] = useState<QueryStrategy>('both');
+  const [includeEmbeddings, setIncludeEmbeddings] = useState<boolean>(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +22,8 @@ function QueryForm({ onSubmit, isLoading }: QueryFormProps) {
       query: query.trim(),
       maxDepth,
       limit,
+      strategy,
+      includeEmbeddings,
     });
   };
 
@@ -66,6 +70,43 @@ function QueryForm({ onSubmit, isLoading }: QueryFormProps) {
             onChange={(e) => setLimit(Number.parseInt(e.target.value, 10))}
             disabled={isLoading}
           />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="strategy">Query Strategy</label>
+          <select
+            id="strategy"
+            value={strategy}
+            onChange={(e) => setStrategy(e.target.value as QueryStrategy)}
+            disabled={isLoading}
+          >
+            <option value="both">Both (Documents & Entities)</option>
+            <option value="documents">Documents Only</option>
+            <option value="entities">Entities Only</option>
+          </select>
+          <small className="form-hint">
+            {strategy === 'both' && 'Searches both documents and entities, combining results'}
+            {strategy === 'documents' && 'Searches only documents, then retrieves connected entities'}
+            {strategy === 'entities' && 'Searches only entities (original behavior)'}
+          </small>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="includeEmbeddings" className="checkbox-label">
+            <input
+              id="includeEmbeddings"
+              type="checkbox"
+              checked={includeEmbeddings}
+              onChange={(e) => setIncludeEmbeddings(e.target.checked)}
+              disabled={isLoading}
+            />
+            <span>Include Embeddings</span>
+          </label>
+          <small className="form-hint">
+            Include vector embeddings in response (increases payload size)
+          </small>
         </div>
       </div>
 

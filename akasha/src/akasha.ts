@@ -84,12 +84,15 @@ export class Akasha {
     let documentIds: string[] = [];
 
     // Step 1: Search documents and/or entities based on strategy
+    const contexts = options?.contexts;
+    
     if (strategy === 'documents' || strategy === 'both') {
       documents = await this.neo4j.findDocumentsByVector(
         queryEmbedding,
         10,
         0.5,
-        scopeId
+        scopeId,
+        contexts
       );
       documentIds = documents.map((d) => d.id);
     }
@@ -99,7 +102,8 @@ export class Akasha {
         queryEmbedding,
         10,
         0.5,
-        scopeId
+        scopeId,
+        contexts
       );
       entityIds = entities.map((e) => e.id);
     }
@@ -216,21 +220,23 @@ export class Akasha {
     // Step 1: Find or create document node (deduplication by text)
     let document: Document;
     let documentCreated = 0;
+    const contextId = options?.contextId || randomUUID();
     
     const existingDocument = await this.neo4j.findDocumentByText(text, scopeId);
     if (existingDocument) {
-      // Document already exists - use it
-      document = existingDocument;
+      // Document already exists - update contextIds array
+      document = await this.neo4j.updateDocumentContextIds(existingDocument.id, contextId);
       documentCreated = 0;
     } else {
-      // Create new document node
+      // Create new document node with contextIds array
       const documentEmbedding = await this.embeddings.generateEmbedding(text);
-      const contextId = options?.contextId || randomUUID();
       
       document = await this.neo4j.createDocument({
         properties: {
           text,
           scopeId,
+          contextIds: [contextId],
+          // Keep contextId for backward compatibility
           contextId,
         },
       }, documentEmbedding);
@@ -252,11 +258,12 @@ export class Akasha {
         const existingEntity = await this.neo4j.findEntityByName(entityName, scopeId);
         
         if (existingEntity) {
-          // Entity exists - use it
-          createdEntities.push(existingEntity);
-          entityNameToIdMap.set(entityName, existingEntity.id);
+          // Entity exists - update contextIds array
+          const updatedEntity = await this.neo4j.updateEntityContextIds(existingEntity.id, contextId);
+          createdEntities.push(updatedEntity);
+          entityNameToIdMap.set(entityName, updatedEntity.id);
         } else {
-          // Create new entity
+          // Create new entity with contextIds array
           const entityText = generateEntityText(extractedEntity);
           const entityEmbedding = await this.embeddings.generateEmbedding(entityText);
           
@@ -265,6 +272,7 @@ export class Akasha {
             properties: {
               ...extractedEntity.properties,
               scopeId,
+              contextIds: [contextId],
             },
           };
           
@@ -337,7 +345,6 @@ export class Akasha {
     const createdRelationships = await this.neo4j.createRelationships(relationshipsToCreate);
 
     // Step 7: Create context (metadata, not a graph node)
-    const contextId = options?.contextId || document.properties.contextId || randomUUID();
     const context: Context = {
       id: contextId,
       scopeId,

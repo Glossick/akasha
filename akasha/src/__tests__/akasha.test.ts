@@ -10,6 +10,10 @@ const mockSession = {
   close: mock(() => Promise.resolve()),
 } as any;
 
+// Track state for update mocks
+let lastFoundDocument: any = null;
+let lastFoundEntity: any = null;
+
 // Mock dependencies
 const mockNeo4jService = {
   connect: mock(() => Promise.resolve()),
@@ -36,7 +40,12 @@ const mockNeo4jService = {
   createRelationships: mock(() => Promise.resolve([
     { id: 'r1', type: 'KNOWS', from: '1', to: '2', properties: { scopeId: 'tenant-1' } },
   ])),
-  findDocumentByText: mock(() => Promise.resolve(null)), // Default: document doesn't exist
+  findDocumentByText: mock(async (text: string, scopeId: string) => {
+    // If mockResolvedValueOnce was used, it will override this, so we check the actual mock result
+    const result = lastFoundDocument || null;
+    // The result will be set by mockResolvedValueOnce in tests
+    return Promise.resolve(result);
+  }),
   createDocument: mock(() => Promise.resolve({
     id: 'doc1',
     label: 'Document',
@@ -49,7 +58,56 @@ const mockNeo4jService = {
     to: '1',
     properties: {},
   })),
-  findEntityByName: mock(() => Promise.resolve(null)), // Default: entity doesn't exist
+  findEntityByName: mock(async (name: string, scopeId: string) => {
+    // If mockResolvedValueOnce was used, it will override this, so we check the actual mock result
+    const result = lastFoundEntity || null;
+    // The result will be set by mockResolvedValueOnce in tests
+    return Promise.resolve(result);
+  }),
+  updateDocumentContextIds: mock((docId: string, contextId: string) => {
+    if (lastFoundDocument) {
+      const existingContextIds = lastFoundDocument.properties?.contextIds || [];
+      const newContextIds = existingContextIds.includes(contextId)
+        ? existingContextIds
+        : [...existingContextIds, contextId];
+      const updated = {
+        ...lastFoundDocument,
+        properties: {
+          ...lastFoundDocument.properties,
+          contextIds: newContextIds,
+        },
+      };
+      lastFoundDocument = updated; // Update tracked state
+      return Promise.resolve(updated);
+    }
+    return Promise.resolve({
+      id: docId,
+      label: 'Document',
+      properties: { contextIds: [contextId] },
+    });
+  }),
+  updateEntityContextIds: mock((entityId: string, contextId: string) => {
+    if (lastFoundEntity) {
+      const existingContextIds = lastFoundEntity.properties?.contextIds || [];
+      const newContextIds = existingContextIds.includes(contextId)
+        ? existingContextIds
+        : [...existingContextIds, contextId];
+      const updated = {
+        ...lastFoundEntity,
+        properties: {
+          ...lastFoundEntity.properties,
+          contextIds: newContextIds,
+        },
+      };
+      lastFoundEntity = updated; // Update tracked state
+      return Promise.resolve(updated);
+    }
+    return Promise.resolve({
+      id: entityId,
+      label: 'Person',
+      properties: { contextIds: [contextId] },
+    });
+  }),
 } as any;
 
 const mockEmbeddingService = {
@@ -356,6 +414,284 @@ describe('Akasha', () => {
 
       // Should filter by both scopeId and contextIds
       expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
+    });
+
+    describe('Context Filtering - learn() method', () => {
+      beforeEach(() => {
+        // Reset tracked state
+        lastFoundDocument = null;
+        lastFoundEntity = null;
+      });
+
+      it('should add contextId to new document contextIds array', async () => {
+        const akasha = new Akasha({
+          neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
+          scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
+        }, mockNeo4jService as any, mockEmbeddingService as any);
+
+        await akasha.initialize();
+
+        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(null); // Document doesn't exist
+        mockNeo4jService.createDocument.mockResolvedValueOnce({
+          id: 'doc1',
+          label: 'Document',
+          properties: {
+            text: 'Test text',
+            scopeId: 'tenant-1',
+            contextIds: ['context-1'],
+          },
+        });
+
+        const result = await akasha.learn('Test text', {
+          contextId: 'context-1',
+          contextName: 'Test Context',
+        });
+
+        // Verify document was created with contextIds array
+        expect(mockNeo4jService.createDocument).toHaveBeenCalled();
+        const createCall = mockNeo4jService.createDocument.mock.calls[0];
+        expect(createCall[0].properties.contextIds).toEqual(['context-1']);
+        expect(result.document.properties.contextIds).toEqual(['context-1']);
+      });
+
+      it('should append contextId to existing document contextIds array', async () => {
+        const existingDocument = {
+          id: 'doc-existing',
+          label: 'Document',
+          properties: {
+            text: 'Test text',
+            scopeId: 'tenant-1',
+            contextIds: ['context-1'], // Already has one context
+          },
+        };
+
+        lastFoundDocument = existingDocument; // Set tracked state
+        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(existingDocument);
+
+        const akasha = new Akasha({
+          neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
+          scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
+        }, mockNeo4jService as any, mockEmbeddingService as any);
+
+        await akasha.initialize();
+
+        // Mock update to add new contextId
+        const updatedDocument = {
+          ...existingDocument,
+          properties: {
+            ...existingDocument.properties,
+            contextIds: ['context-1', 'context-2'],
+          },
+        };
+
+        // We'll need to update the document - this will be implemented
+        const result = await akasha.learn('Test text', {
+          contextId: 'context-2',
+          contextName: 'Second Context',
+        });
+
+        // Document should now have both contextIds
+        expect(result.document.properties.contextIds).toContain('context-1');
+        expect(result.document.properties.contextIds).toContain('context-2');
+      });
+
+      it('should add contextId to new entity contextIds array', async () => {
+        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(null);
+        mockNeo4jService.findEntityByName.mockResolvedValueOnce(null); // Entity doesn't exist
+        mockNeo4jService.createDocument.mockResolvedValueOnce({
+          id: 'doc1',
+          label: 'Document',
+          properties: {
+            text: 'Alice works for Acme Corp.',
+            scopeId: 'tenant-1',
+            contextIds: ['context-1'],
+          },
+        });
+        mockNeo4jService.createEntities.mockResolvedValueOnce([
+          {
+            id: '1',
+            label: 'Person',
+            properties: {
+              name: 'Alice',
+              scopeId: 'tenant-1',
+              contextIds: ['context-1'],
+            },
+          },
+        ]);
+
+        const akasha = new Akasha({
+          neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
+          scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
+        }, mockNeo4jService as any, mockEmbeddingService as any);
+
+        await akasha.initialize();
+
+        const result = await akasha.learn('Alice works for Acme Corp.', {
+          contextId: 'context-1',
+        });
+
+        // Verify entity was created with contextIds
+        expect(mockNeo4jService.createEntities).toHaveBeenCalled();
+        const createCall = mockNeo4jService.createEntities.mock.calls[0];
+        expect(createCall[0][0].properties.contextIds).toEqual(['context-1']);
+        expect(result.entities[0].properties.contextIds).toEqual(['context-1']);
+      });
+
+      it('should append contextId to existing entity contextIds array', async () => {
+        const existingDocument = {
+          id: 'doc-existing',
+          label: 'Document',
+          properties: {
+            text: 'Alice knows Bob.',
+            scopeId: 'tenant-1',
+            contextIds: ['context-2'],
+          },
+        };
+
+        const existingEntity = {
+          id: '1',
+          label: 'Person',
+          properties: {
+            name: 'Alice',
+            scopeId: 'tenant-1',
+            contextIds: ['context-1'], // Already has one context
+          },
+        };
+
+        lastFoundDocument = null;
+        lastFoundEntity = existingEntity; // Set tracked state
+        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(null);
+        mockNeo4jService.findEntityByName.mockResolvedValueOnce(existingEntity);
+        mockNeo4jService.createDocument.mockResolvedValueOnce(existingDocument);
+
+        const akasha = new Akasha({
+          neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
+          scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
+        }, mockNeo4jService as any, mockEmbeddingService as any);
+
+        await akasha.initialize();
+
+        const result = await akasha.learn('Alice knows Bob.', {
+          contextId: 'context-2',
+        });
+
+        // Entity should now have both contextIds
+        expect(result.entities[0].properties.contextIds).toContain('context-1');
+        expect(result.entities[0].properties.contextIds).toContain('context-2');
+      });
+
+      it('should not duplicate contextId if already present', async () => {
+        const existingDocument = {
+          id: 'doc-existing',
+          label: 'Document',
+          properties: {
+            text: 'Test text',
+            scopeId: 'tenant-1',
+            contextIds: ['context-1'],
+          },
+        };
+
+        lastFoundDocument = existingDocument; // Set tracked state
+        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(existingDocument);
+
+        const akasha = new Akasha({
+          neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
+          scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
+        }, mockNeo4jService as any, mockEmbeddingService as any);
+
+        await akasha.initialize();
+
+        const result = await akasha.learn('Test text', {
+          contextId: 'context-1', // Same contextId
+        });
+
+        // Should not duplicate
+        const contextIds = result.document.properties.contextIds || [];
+        expect(contextIds.filter(id => id === 'context-1').length).toBe(1);
+      });
+    });
+
+    describe('Context Filtering - ask() method', () => {
+      it('should filter documents by contextIds when contexts specified', async () => {
+        const akasha = new Akasha({
+          neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
+          scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
+        }, mockNeo4jService as any, mockEmbeddingService as any);
+
+        await akasha.initialize();
+
+        mockNeo4jService.findDocumentsByVector.mockClear();
+        await akasha.ask('Find documents', {
+          contexts: ['context-1', 'context-2'],
+          strategy: 'documents',
+        });
+
+        // Should pass contexts to findDocumentsByVector
+        expect(mockNeo4jService.findDocumentsByVector).toHaveBeenCalled();
+        const call = mockNeo4jService.findDocumentsByVector.mock.calls[0];
+        expect(call[4]).toEqual(['context-1', 'context-2']); // 5th parameter should be contexts
+      });
+
+      it('should filter entities by contextIds when contexts specified', async () => {
+        const akasha = new Akasha({
+          neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
+          scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
+        }, mockNeo4jService as any, mockEmbeddingService as any);
+
+        await akasha.initialize();
+
+        mockNeo4jService.findEntitiesByVector.mockClear();
+        await akasha.ask('Find entities', {
+          contexts: ['context-1', 'context-2'],
+          strategy: 'entities',
+        });
+
+        // Should pass contexts to findEntitiesByVector
+        expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
+        const call = mockNeo4jService.findEntitiesByVector.mock.calls[0];
+        expect(call[4]).toEqual(['context-1', 'context-2']); // 5th parameter should be contexts
+      });
+
+      it('should not filter when contexts not specified', async () => {
+        const akasha = new Akasha({
+          neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
+          scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
+        }, mockNeo4jService as any, mockEmbeddingService as any);
+
+        await akasha.initialize();
+
+        mockNeo4jService.findEntitiesByVector.mockClear();
+        await akasha.ask('Find entities', {
+          // No contexts specified
+        });
+
+        // Should pass undefined for contexts
+        expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
+        const call = mockNeo4jService.findEntitiesByVector.mock.calls[0];
+        expect(call[4]).toBeUndefined();
+      });
+
+      it('should filter both documents and entities when strategy is "both"', async () => {
+        const akasha = new Akasha({
+          neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
+          scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
+        }, mockNeo4jService as any, mockEmbeddingService as any);
+
+        await akasha.initialize();
+
+        mockNeo4jService.findDocumentsByVector.mockClear();
+        mockNeo4jService.findEntitiesByVector.mockClear();
+        await akasha.ask('Find everything', {
+          contexts: ['context-1'],
+          strategy: 'both',
+        });
+
+        // Both should be called with contexts
+        expect(mockNeo4jService.findDocumentsByVector).toHaveBeenCalled();
+        expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
+        expect(mockNeo4jService.findDocumentsByVector.mock.calls[0][4]).toEqual(['context-1']);
+        expect(mockNeo4jService.findEntitiesByVector.mock.calls[0][4]).toEqual(['context-1']);
+      });
     });
   });
 

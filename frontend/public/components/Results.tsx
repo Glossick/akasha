@@ -1,4 +1,5 @@
-import type { GraphRAGResponse, ApiError, Entity, Relationship } from '../api.ts';
+import { useState } from 'react';
+import type { GraphRAGResponse, ApiError, Entity, Relationship, Document } from '../api.ts';
 import GraphRenderer from './GraphRenderer.tsx';
 
 interface ResultsProps {
@@ -49,6 +50,17 @@ function Results({ response }: ResultsProps) {
         {context.summary && (
           <div className="context-summary">
             <strong>Summary:</strong> {context.summary}
+          </div>
+        )}
+
+        {context.documents && context.documents.length > 0 && (
+          <div className="documents">
+            <h3>Documents ({context.documents.length})</h3>
+            <div className="documents-list">
+              {context.documents.map((document) => (
+                <DocumentCard key={document.id} document={document} />
+              ))}
+            </div>
           </div>
         )}
 
@@ -146,6 +158,63 @@ function RelationshipCard({ relationship }: { relationship: Relationship }) {
               </span>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocumentCard({ document }: { document: Document }) {
+  const text = document.properties.text;
+  const previewLength = 300;
+  const preview = text.length > previewLength ? text.substring(0, previewLength) + '...' : text;
+  const hasMore = text.length > previewLength;
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="document-card">
+      <div className="document-header">
+        <span className="document-label">📄 Document</span>
+        <span className="document-id">#{document.id}</span>
+        {document.properties.contextId && (
+          <span className="context-badge" title={`Context ID: ${document.properties.contextId}`}>
+            Context
+          </span>
+        )}
+      </div>
+      <div className="document-text">
+        {expanded ? (
+          <div>
+            <pre className="document-content">{text}</pre>
+            {hasMore && (
+              <button
+                className="expand-button"
+                onClick={() => setExpanded(false)}
+                type="button"
+              >
+                Show Less
+              </button>
+            )}
+          </div>
+        ) : (
+          <div>
+            <pre className="document-content">{preview}</pre>
+            {hasMore && (
+              <button
+                className="expand-button"
+                onClick={() => setExpanded(true)}
+                type="button"
+              >
+                Show More
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {document.properties.metadata && Object.keys(document.properties.metadata).length > 0 && (
+        <div className="document-metadata">
+          <strong>Metadata:</strong>
+          <pre>{JSON.stringify(document.properties.metadata, null, 2)}</pre>
         </div>
       )}
     </div>

@@ -49,9 +49,8 @@ describe('Akasha Integration Tests', () => {
         await kg.cleanup();
       } catch (error) {
         console.warn('Cleanup error:', error);
-      }
     }
-  });
+  }
 
   describe('Initialization', () => {
     it.skipIf(!shouldRunIntegrationTests)('should connect to Neo4j and OpenAI', async () => {
@@ -877,6 +876,186 @@ describe('Akasha Integration Tests', () => {
       // Verify processual relationships (may have PARTICIPATES_IN, CAUSES, etc.)
       const relationshipTypes = result.relationships.map(r => r.type);
       expect(relationshipTypes.length).toBeGreaterThan(0);
+
+      await kg.cleanup();
+    });
+  });
+
+  describe('Context Filtering', () => {
+    it.skipIf(!shouldRunIntegrationTests)('should filter queries by specific contexts', async () => {
+      const contextTestScope: Scope = {
+        id: `context-filter-test-${Date.now()}`,
+        type: 'test',
+        name: 'Context Filter Test Scope',
+      };
+
+      const kg = akasha({
+        neo4j: {
+          uri: process.env.NEO4J_URI!,
+          user: process.env.NEO4J_USER!,
+          password: process.env.NEO4J_PASSWORD!,
+        },
+        scope: contextTestScope,
+        openai: {
+          apiKey: process.env.OPENAI_API_KEY!,
+        },
+      });
+
+      await kg.initialize();
+      isConnected = true;
+
+      // Learn data in context 1
+      const learn1 = await kg.learn('Alice works for Acme Corp as a software engineer.', {
+        contextId: 'context-1',
+        contextName: 'Context 1',
+      });
+
+      // Learn data in context 2
+      const learn2 = await kg.learn('Bob works for TechCorp as a designer.', {
+        contextId: 'context-2',
+        contextName: 'Context 2',
+      });
+
+      // Learn data in context 3
+      const learn3 = await kg.learn('Charlie works for StartupCo as a manager.', {
+        contextId: 'context-3',
+        contextName: 'Context 3',
+      });
+
+      // Verify documents have contextIds
+      expect(learn1.document.properties.contextIds).toContain('context-1');
+      expect(learn2.document.properties.contextIds).toContain('context-2');
+      expect(learn3.document.properties.contextIds).toContain('context-3');
+
+      // Query with context 1 only - should find Alice
+      const result1 = await kg.ask('Who works for companies?', {
+        contexts: ['context-1'],
+      });
+      const hasAlice = result1.context.entities.some(e => 
+        (e.properties.name as string)?.toLowerCase().includes('alice')
+      );
+      expect(hasAlice).toBe(true);
+
+      // Query with context 2 only - should find Bob
+      const result2 = await kg.ask('Who works for companies?', {
+        contexts: ['context-2'],
+      });
+      const hasBob = result2.context.entities.some(e => 
+        (e.properties.name as string)?.toLowerCase().includes('bob')
+      );
+      expect(hasBob).toBe(true);
+
+      // Query with contexts 1 and 2 - should find both Alice and Bob
+      const result3 = await kg.ask('Who works for companies?', {
+        contexts: ['context-1', 'context-2'],
+      });
+      const hasAliceInBoth = result3.context.entities.some(e => 
+        (e.properties.name as string)?.toLowerCase().includes('alice')
+      );
+      const hasBobInBoth = result3.context.entities.some(e => 
+        (e.properties.name as string)?.toLowerCase().includes('bob')
+      );
+      expect(hasAliceInBoth).toBe(true);
+      expect(hasBobInBoth).toBe(true);
+
+      // Query with context 3 only - should find Charlie, not Alice or Bob
+      const result4 = await kg.ask('Who works for companies?', {
+        contexts: ['context-3'],
+      });
+      const hasCharlie = result4.context.entities.some(e => 
+        (e.properties.name as string)?.toLowerCase().includes('charlie')
+      );
+      const hasAliceInContext3 = result4.context.entities.some(e => 
+        (e.properties.name as string)?.toLowerCase().includes('alice')
+      );
+      const hasBobInContext3 = result4.context.entities.some(e => 
+        (e.properties.name as string)?.toLowerCase().includes('bob')
+      );
+      expect(hasCharlie).toBe(true);
+      expect(hasAliceInContext3).toBe(false);
+      expect(hasBobInContext3).toBe(false);
+
+      // Query without contexts - should find all
+      const result5 = await kg.ask('Who works for companies?');
+      const hasAll = result5.context.entities.length >= 3;
+      expect(hasAll).toBe(true);
+
+      await kg.cleanup();
+    });
+
+    it.skipIf(!shouldRunIntegrationTests)('should append contextIds to existing documents and entities', async () => {
+      const appendTestScope: Scope = {
+        id: `context-append-test-${Date.now()}`,
+        type: 'test',
+        name: 'Context Append Test Scope',
+      };
+
+      const kg = akasha({
+        neo4j: {
+          uri: process.env.NEO4J_URI!,
+          user: process.env.NEO4J_USER!,
+          password: process.env.NEO4J_PASSWORD!,
+        },
+        scope: appendTestScope,
+        openai: {
+          apiKey: process.env.OPENAI_API_KEY!,
+        },
+      });
+
+      await kg.initialize();
+      isConnected = true;
+
+      // Learn text first time (creates document and entity)
+      const learn1 = await kg.learn('Alice works for Acme Corp.', {
+        contextId: 'context-1',
+        contextName: 'Context 1',
+      });
+
+      const aliceEntityId = learn1.entities.find(e => 
+        (e.properties.name as string)?.toLowerCase().includes('alice')
+      )?.id;
+
+      expect(learn1.document.properties.contextIds).toContain('context-1');
+      expect(aliceEntityId).toBeDefined();
+      if (aliceEntityId) {
+        const aliceEntity = learn1.entities.find(e => e.id === aliceEntityId);
+        expect(aliceEntity?.properties.contextIds).toContain('context-1');
+      }
+
+      // Learn same text again with different context (should append to existing document)
+      const learn2 = await kg.learn('Alice works for Acme Corp.', {
+        contextId: 'context-2',
+        contextName: 'Context 2',
+      });
+
+      // Document should now have both contextIds
+      expect(learn2.document.properties.contextIds).toContain('context-1');
+      expect(learn2.document.properties.contextIds).toContain('context-2');
+
+      // Entity should also have both contextIds
+      const aliceEntity2 = learn2.entities.find(e => 
+        (e.properties.name as string)?.toLowerCase().includes('alice')
+      );
+      expect(aliceEntity2?.properties.contextIds).toContain('context-1');
+      expect(aliceEntity2?.properties.contextIds).toContain('context-2');
+
+      // Query with context-1 should find Alice
+      const result1 = await kg.ask('Who works for Acme Corp?', {
+        contexts: ['context-1'],
+      });
+      const hasAlice1 = result1.context.entities.some(e => 
+        (e.properties.name as string)?.toLowerCase().includes('alice')
+      );
+      expect(hasAlice1).toBe(true);
+
+      // Query with context-2 should also find Alice
+      const result2 = await kg.ask('Who works for Acme Corp?', {
+        contexts: ['context-2'],
+      });
+      const hasAlice2 = result2.context.entities.some(e => 
+        (e.properties.name as string)?.toLowerCase().includes('alice')
+      );
+      expect(hasAlice2).toBe(true);
 
       await kg.cleanup();
     });

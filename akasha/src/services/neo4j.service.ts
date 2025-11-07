@@ -126,7 +126,8 @@ export class Neo4jService {
     queryEmbedding: number[],
     limit: number = 10,
     similarityThreshold: number = 0.5,
-    scopeId?: string
+    scopeId?: string,
+    contexts?: string[]
   ): Promise<Entity[]> {
     const session = this.getSession();
     try {
@@ -147,11 +148,19 @@ export class Neo4jService {
           RETURN id(node) as id, labels(node) as labels, properties(node) as properties, score
         `;
 
-        // Add scope filter if provided
+        // Add scope and context filters if provided
+        const whereConditions: string[] = [];
         if (scopeId) {
+          whereConditions.push('node.scopeId = $scopeId');
+        }
+        if (contexts && contexts.length > 0) {
+          whereConditions.push('(node.contextIds IS NULL OR ANY(ctx IN node.contextIds WHERE ctx IN $contexts))');
+        }
+        
+        if (whereConditions.length > 0) {
           query = query.replace(
             /RETURN id\(node\)/i,
-            `WHERE node.scopeId = $scopeId\n          RETURN id(node)`
+            `WHERE ${whereConditions.join(' AND ')}\n          RETURN id(node)`
           );
         }
 
@@ -160,6 +169,7 @@ export class Neo4jService {
           queryVector: queryEmbedding,
           limit: limitInt,
           ...(scopeId ? { scopeId } : {}),
+          ...(contexts && contexts.length > 0 ? { contexts } : {}),
         });
 
         const vectorResults = result.records
@@ -193,13 +203,20 @@ export class Neo4jService {
       if (scopeId) {
         fallbackQuery += ` AND n.scopeId = $scopeId`;
       }
+      
+      if (contexts && contexts.length > 0) {
+        fallbackQuery += ` AND (n.contextIds IS NULL OR ANY(ctx IN n.contextIds WHERE ctx IN $contexts))`;
+      }
 
       fallbackQuery += `
         RETURN id(n) as id, labels(n) as labels, properties(n) as properties, n.embedding as embedding
         LIMIT 1000
       `;
 
-      const fallbackResult = await session.run(fallbackQuery, scopeId ? { scopeId } : {});
+      const fallbackResult = await session.run(fallbackQuery, {
+        ...(scopeId ? { scopeId } : {}),
+        ...(contexts && contexts.length > 0 ? { contexts } : {}),
+      });
       const entities: Array<Entity & { similarity?: number }> = [];
 
       for (const record of fallbackResult.records) {
@@ -576,7 +593,8 @@ export class Neo4jService {
     queryEmbedding: number[],
     limit: number = 10,
     similarityThreshold: number = 0.5,
-    scopeId?: string
+    scopeId?: string,
+    contexts?: string[]
   ): Promise<Document[]> {
     const session = this.getSession();
     try {
@@ -597,11 +615,19 @@ export class Neo4jService {
           RETURN id(node) as id, labels(node) as labels, properties(node) as properties, score
         `;
 
-        // Add scope filter if provided
+        // Add scope and context filters if provided
+        const whereConditions: string[] = [];
         if (scopeId) {
+          whereConditions.push('node.scopeId = $scopeId');
+        }
+        if (contexts && contexts.length > 0) {
+          whereConditions.push('(node.contextIds IS NULL OR ANY(ctx IN node.contextIds WHERE ctx IN $contexts))');
+        }
+        
+        if (whereConditions.length > 0) {
           query = query.replace(
             /RETURN id\(node\)/i,
-            `WHERE node.scopeId = $scopeId\n          RETURN id(node)`
+            `WHERE ${whereConditions.join(' AND ')}\n          RETURN id(node)`
           );
         }
 
@@ -610,6 +636,7 @@ export class Neo4jService {
           queryVector: queryEmbedding,
           limit: limitInt,
           ...(scopeId ? { scopeId } : {}),
+          ...(contexts && contexts.length > 0 ? { contexts } : {}),
         });
 
         const vectorResults = result.records
@@ -643,13 +670,20 @@ export class Neo4jService {
       if (scopeId) {
         fallbackQuery += ` AND d.scopeId = $scopeId`;
       }
+      
+      if (contexts && contexts.length > 0) {
+        fallbackQuery += ` AND (d.contextIds IS NULL OR ANY(ctx IN d.contextIds WHERE ctx IN $contexts))`;
+      }
 
       fallbackQuery += `
         RETURN id(d) as id, labels(d) as labels, properties(d) as properties, d.embedding as embedding
         LIMIT 1000
       `;
 
-      const fallbackResult = await session.run(fallbackQuery, scopeId ? { scopeId } : {});
+      const fallbackResult = await session.run(fallbackQuery, {
+        ...(scopeId ? { scopeId } : {}),
+        ...(contexts && contexts.length > 0 ? { contexts } : {}),
+      });
       const documents: Array<Document & { similarity?: number }> = [];
 
       for (const record of fallbackResult.records) {
@@ -710,6 +744,88 @@ export class Neo4jService {
         from: record.get('fromId').toString(),
         to: record.get('toId').toString(),
         properties: record.get('properties') || { scopeId },
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Update document contextIds array (add contextId if not present)
+   */
+  async updateDocumentContextIds(documentId: string, contextId: string): Promise<Document> {
+    const session = this.getSession();
+    try {
+      const docId = neo4j.int(documentId);
+      
+      const query = `
+        MATCH (d:Document)
+        WHERE id(d) = $docId
+        WITH d, 
+          CASE 
+            WHEN d.contextIds IS NULL THEN [$contextId]
+            WHEN $contextId IN d.contextIds THEN d.contextIds
+            ELSE d.contextIds + [$contextId]
+          END AS newContextIds
+        SET d.contextIds = newContextIds
+        RETURN id(d) as id, labels(d) as labels, properties(d) as properties
+      `;
+
+      const result = await session.run(query, {
+        docId,
+        contextId,
+      });
+
+      const record = result.records[0];
+      if (!record) {
+        throw new Error(`Document with id ${documentId} not found`);
+      }
+
+      return {
+        id: record.get('id').toString(),
+        label: 'Document',
+        properties: record.get('properties') || {},
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Update entity contextIds array (add contextId if not present)
+   */
+  async updateEntityContextIds(entityId: string, contextId: string): Promise<Entity> {
+    const session = this.getSession();
+    try {
+      const entId = neo4j.int(entityId);
+      
+      const query = `
+        MATCH (e:Entity)
+        WHERE id(e) = $entId
+        WITH e,
+          CASE 
+            WHEN e.contextIds IS NULL THEN [$contextId]
+            WHEN $contextId IN e.contextIds THEN e.contextIds
+            ELSE e.contextIds + [$contextId]
+          END AS newContextIds
+        SET e.contextIds = newContextIds
+        RETURN id(e) as id, labels(e) as labels, properties(e) as properties
+      `;
+
+      const result = await session.run(query, {
+        entId,
+        contextId,
+      });
+
+      const record = result.records[0];
+      if (!record) {
+        throw new Error(`Entity with id ${entityId} not found`);
+      }
+
+      return {
+        id: record.get('id').toString(),
+        label: record.get('labels')[0] || 'Unknown',
+        properties: record.get('properties') || {},
       };
     } finally {
       await session.close();
