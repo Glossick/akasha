@@ -15,16 +15,26 @@ Creates and returns an Akasha instance.
   - `user: string` - Username
   - `password: string` - Password
   - `database?: string` - Database name (default: `'neo4j'`)
-- `config.openai` - OpenAI configuration (optional)
-  - `apiKey: string` - OpenAI API key (required if not in environment)
-  - `model?: string` - LLM model (default: `'gpt-4'`)
-  - `embeddingModel?: string` - Embedding model (default: `'text-embedding-3-small'`)
+- `config.providers` - Provider configuration (required)
+  - `embedding` - Embedding provider configuration
+    - `type: 'openai'` - Provider type
+    - `config.apiKey: string` - API key
+    - `config.model: string` - Model name (e.g., `'text-embedding-3-small'`, `'text-embedding-3-large'`)
+    - `config.dimensions?: number` - Optional dimension override for OpenAI models (e.g., 512, 1536, 3072)
+  - `llm` - LLM provider configuration
+    - `type: 'openai' | 'anthropic' | 'deepseek'` - Provider type
+    - `config.apiKey: string` - API key
+    - `config.model: string` - Model name
+      - OpenAI: `'gpt-4'`, `'gpt-4-turbo'`, `'gpt-4o'`
+      - Anthropic: `'claude-3-5-sonnet-20241022'`, `'claude-3-opus-20240229'`
+      - DeepSeek: `'deepseek-chat'`, `'deepseek-reasoner'`
+    - `config.temperature?: number` - Default temperature (OpenAI/DeepSeek: 0-2, Anthropic: 0-1)
 - `config.scope?: Scope` - Scope configuration for multi-tenancy
 - `config.extractionPrompt?: Partial<ExtractionPromptTemplate>` - Custom extraction prompt template
 
 **Returns:** `Akasha` instance
 
-**Example:**
+**Example (OpenAI Only):**
 
 ```typescript
 const kg = akasha({
@@ -33,13 +43,76 @@ const kg = akasha({
     user: 'neo4j',
     password: 'password',
   },
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY!,
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'gpt-4',
+      },
+    },
   },
   scope: {
     id: 'my-scope',
     type: 'project',
     name: 'My Project',
+  },
+});
+```
+
+**Example (OpenAI + Anthropic):**
+
+```typescript
+const kg = akasha({
+  neo4j: { /* ... */ },
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'anthropic',
+      config: {
+        apiKey: process.env.ANTHROPIC_API_KEY!,
+        model: 'claude-3-5-sonnet-20241022',
+      },
+    },
+  },
+});
+```
+
+**Example (OpenAI + DeepSeek):**
+
+```typescript
+const kg = akasha({
+  neo4j: { /* ... */ },
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'text-embedding-3-small',
+        dimensions: 512, // Optional: reduce dimensions for performance
+      },
+    },
+    llm: {
+      type: 'deepseek',
+      config: {
+        apiKey: process.env.DEEPSEEK_API_KEY!,
+        model: 'deepseek-chat', // or 'deepseek-reasoner' for enhanced reasoning
+        temperature: 0.7,
+      },
+    },
   },
 });
 ```
@@ -78,8 +151,21 @@ const config = {
     user: 'neo4j',
     password: 'password',
   },
-  openai: {
-    apiKey: 'sk-test-key',
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: 'sk-test-key',
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'openai',
+      config: {
+        apiKey: 'sk-test-key',
+        model: 'gpt-4',
+      },
+    },
   },
 };
 
@@ -98,7 +184,10 @@ if (!validation.valid) {
 
 **Validation Rules:**
 - **Neo4j** (required): `uri`, `user`, `password` must be non-empty strings
-- **OpenAI** (optional): If provided, `apiKey` must be a non-empty string
+- **Providers** (required):
+  - **embedding** (required): Must have `type` and `config` with `apiKey` and `model`
+  - **llm** (required): Must have `type` and `config` with `apiKey` and `model`
+  - Valid types: `'openai'` (embedding), `'openai' | 'anthropic' | 'deepseek'` (LLM)
 - **Scope** (optional): If provided, `id`, `type`, and `name` must be non-empty strings
 - **Warnings**: Non-standard Neo4j URI formats (not starting with `bolt://` or `neo4j://`) generate warnings but don't fail validation
 
@@ -411,8 +500,9 @@ Check the health status of Neo4j and OpenAI services.
     connected: boolean;
     error?: string;
   };
-  openai: {
+  embedding: {
     available: boolean;
+    provider: string; // 'openai'
     error?: string;
   };
   timestamp: string; // ISO timestamp
@@ -420,7 +510,7 @@ Check the health status of Neo4j and OpenAI services.
 ```
 
 **Status Values:**
-- `'healthy'`: Both Neo4j and OpenAI are available
+- `'healthy'`: Both Neo4j and embedding provider are available
 - `'degraded'`: One service is unavailable
 - `'unhealthy'`: Both services are unavailable
 

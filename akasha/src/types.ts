@@ -62,6 +62,38 @@ export interface ExtractionPromptTemplate {
 }
 
 /**
+ * Provider configuration for embedding services
+ */
+export interface EmbeddingProviderConfig {
+  type: 'openai';
+  config: {
+    apiKey: string;
+    model: string;
+    dimensions?: number;
+  };
+}
+
+/**
+ * Provider configuration for LLM services
+ */
+export interface LLMProviderConfig {
+  type: 'openai' | 'anthropic' | 'deepseek';
+  config: {
+    apiKey: string;
+    model: string;
+    temperature?: number;
+  };
+}
+
+/**
+ * Combined provider configuration
+ */
+export interface ProvidersConfig {
+  embedding: EmbeddingProviderConfig;
+  llm: LLMProviderConfig;
+}
+
+/**
  * Akasha configuration
  */
 export interface AkashaConfig {
@@ -71,11 +103,12 @@ export interface AkashaConfig {
     password: string;
     database?: string;
   };
-  openai?: {
-    apiKey: string;
-    model?: string;
-    embeddingModel?: string;
-  };
+  
+  /**
+   * Provider configuration (required)
+   */
+  providers: ProvidersConfig;
+  
   scope?: Scope;
   extractionPrompt?: Partial<ExtractionPromptTemplate>;
 }

@@ -47,8 +47,21 @@ async function demo() {
       password: process.env.NEO4J_PASSWORD!,
     },
     scope,
-    openai: {
-      apiKey: process.env.OPENAI_API_KEY!,
+    providers: {
+      embedding: {
+        type: 'openai',
+        config: {
+          apiKey: process.env.OPENAI_API_KEY!,
+          model: 'text-embedding-3-small',
+        },
+      },
+      llm: {
+        type: 'openai',
+        config: {
+          apiKey: process.env.OPENAI_API_KEY!,
+          model: 'gpt-4',
+        },
+      },
     },
   });
 
@@ -145,8 +158,21 @@ async function demo() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: tenant2,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: process.env.OPENAI_API_KEY!,
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: process.env.OPENAI_API_KEY!,
+            model: 'gpt-4',
+          },
+        },
       },
     });
 
@@ -177,8 +203,21 @@ async function demo() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: customScope,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: process.env.OPENAI_API_KEY!,
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: process.env.OPENAI_API_KEY!,
+            model: 'gpt-4',
+          },
+        },
       },
       extractionPrompt: {
         entityTypes: [
