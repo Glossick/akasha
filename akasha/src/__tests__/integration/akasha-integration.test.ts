@@ -38,8 +38,9 @@ describe('Akasha Integration Tests', () => {
             password: process.env.NEO4J_PASSWORD!,
           },
           scope: testScope,
-          openai: {
-            apiKey: process.env.OPENAI_API_KEY!,
+          providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
           },
         });
 
@@ -63,8 +64,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -82,8 +84,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -101,8 +104,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -161,8 +165,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -193,8 +198,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -227,8 +233,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -272,8 +279,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: uniqueScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -310,8 +318,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: uniqueScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -346,8 +355,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -385,8 +395,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: uniqueScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -425,8 +436,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: uniqueScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -460,8 +472,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -503,8 +516,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -538,8 +552,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -584,8 +599,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: scope1,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -596,8 +612,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: scope2,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -668,8 +685,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: tenant1,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -680,8 +698,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: tenant2,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -729,8 +748,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
         // No extractionPrompt = uses default template
       });
@@ -784,8 +804,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
         extractionPrompt: customTemplate,
       });
@@ -852,8 +873,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
         extractionPrompt: processTemplate,
       });
@@ -898,8 +920,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: contextTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -999,8 +1022,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: appendTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1078,8 +1102,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: temporalTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1123,8 +1148,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: temporalValidTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1172,8 +1198,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: temporalOngoingTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1213,8 +1240,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: temporalQueryTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1301,8 +1329,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: temporalPastTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1362,8 +1391,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: temporalDefaultTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1402,8 +1432,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: batchTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1449,8 +1480,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: batchItemTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1501,8 +1533,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: healthTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1536,8 +1569,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: statsTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1583,8 +1617,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: statsDefaultTestScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1614,8 +1649,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: progressScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1681,8 +1717,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: timeScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1730,8 +1767,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: deleteScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1775,8 +1813,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: cascadeScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1825,8 +1864,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: relScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1870,8 +1910,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: docScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1921,8 +1962,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: scope1,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1933,8 +1975,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: scope2,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -1979,8 +2022,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: updateScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2039,8 +2083,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: metadataScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2088,8 +2133,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: relScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2142,8 +2188,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: docScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2207,8 +2254,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: textScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2255,8 +2303,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: scope1,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2267,8 +2316,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: scope2,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2313,8 +2363,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: listScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2349,8 +2400,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: labelScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2385,8 +2437,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: paginationScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2429,8 +2482,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: relScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2464,8 +2518,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: typeScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2500,8 +2555,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: filterScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2547,8 +2603,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: docScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2583,8 +2640,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: paginationScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2627,8 +2685,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: scope1,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2639,8 +2698,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: scope2,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 
@@ -2677,8 +2737,9 @@ describe('Akasha Integration Tests', () => {
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
         },
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
         scope: testScope,
       };
@@ -2711,7 +2772,9 @@ describe('Akasha Integration Tests', () => {
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
         },
-        openai: {
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
           apiKey: '',
         },
       };
@@ -2730,8 +2793,9 @@ describe('Akasha Integration Tests', () => {
           password: process.env.NEO4J_PASSWORD!,
         },
         scope: testScope,
-        openai: {
-          apiKey: process.env.OPENAI_API_KEY!,
+        providers: {
+          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
         },
       });
 

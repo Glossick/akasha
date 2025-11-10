@@ -8,6 +8,7 @@ Akasha is a minimal, developer-friendly GraphRAG library that transforms natural
 
 - [Getting Started](./getting-started.md) - Quick start guide
 - [Core Concepts](./core-concepts.md) - Understanding Akasha's architecture
+- [Providers](./providers.md) - Configuring embedding and LLM providers
 - [Design Principles](./philosophy.md) - Design principles and architecture decisions
 - [API Reference](./api-reference.md) - Complete API documentation
 - [Ontologies](./ontologies.md) - Working with custom ontologies
@@ -44,8 +45,21 @@ const kg = akasha({
     type: 'project',
     name: 'My Project',
   },
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY,
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'gpt-4',
+      },
+    },
   },
 });
 

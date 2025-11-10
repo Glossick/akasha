@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, mock } from 'bun:test';
 import { Akasha } from '../akasha';
 import type { Scope, QueryStatistics } from '../types';
+import type { EmbeddingProvider, LLMProvider } from '../services/providers/interfaces';
 
 const mockSession = {
   run: mock(() => Promise.resolve({
@@ -15,10 +16,10 @@ const mockNeo4jService = {
   ensureVectorIndex: mock(() => Promise.resolve()),
   getSession: mock(() => mockSession),
   findEntitiesByVector: mock(() => Promise.resolve([
-    { id: '1', label: 'Person', properties: { name: 'Alice', scopeId: 'tenant-1' } },
+    { id: '1', label: 'Person', properties: { name: 'Alice', scopeId: 'tenant-1', _similarity: 0.9 } },
   ])),
   findDocumentsByVector: mock(() => Promise.resolve([
-    { id: 'doc1', label: 'Document', properties: { text: 'Alice works for Acme Corp.', scopeId: 'tenant-1' } },
+    { id: 'doc1', label: 'Document', properties: { text: 'Alice works for Acme Corp.', scopeId: 'tenant-1', _similarity: 0.9 } },
   ])),
   retrieveSubgraph: mock(() => Promise.resolve({
     entities: [
@@ -30,9 +31,32 @@ const mockNeo4jService = {
   })),
 } as any;
 
-const mockEmbeddingService = {
+// Mock providers
+const mockEmbeddingProvider: EmbeddingProvider = {
+  provider: 'openai',
+  model: 'text-embedding-3-small',
+  dimensions: 1536,
   generateEmbedding: mock(() => Promise.resolve(new Array(1536).fill(0.1))),
-  generateResponse: mock(() => Promise.resolve('Test answer')),
+  generateEmbeddings: mock(() => Promise.resolve([new Array(1536).fill(0.1)])),
+} as any;
+
+const mockLLMProvider: LLMProvider = {
+  provider: 'openai',
+  model: 'gpt-4',
+  generateResponse: mock((prompt, context, systemMessage) => {
+    if (systemMessage?.includes('extracting knowledge graph structures')) {
+      return Promise.resolve(JSON.stringify({
+        entities: [
+          { label: 'Person', properties: { name: 'Alice' } },
+          { label: 'Company', properties: { name: 'Acme Corp' } },
+        ],
+        relationships: [
+          { from: 'Alice', to: 'Acme Corp', type: 'WORKS_FOR', properties: {} },
+        ],
+      }));
+    }
+    return Promise.resolve('Test answer');
+  }),
 } as any;
 
 describe('Akasha - Query Statistics', () => {
@@ -40,8 +64,8 @@ describe('Akasha - Query Statistics', () => {
     mockNeo4jService.findEntitiesByVector.mockClear();
     mockNeo4jService.findDocumentsByVector.mockClear();
     mockNeo4jService.retrieveSubgraph.mockClear();
-    mockEmbeddingService.generateEmbedding.mockClear();
-    mockEmbeddingService.generateResponse.mockClear();
+    mockEmbeddingProvider.generateEmbedding.mockClear();
+    mockLLMProvider.generateResponse.mockClear();
   });
 
   const scope: Scope = {
@@ -58,7 +82,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -85,7 +109,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -104,7 +128,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -121,7 +145,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -143,7 +167,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -168,7 +192,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -202,7 +226,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 

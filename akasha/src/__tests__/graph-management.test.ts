@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, mock } from 'bun:test';
 import { Akasha } from '../akasha';
 import type { Scope, DeleteResult, UpdateEntityOptions, UpdateRelationshipOptions, UpdateDocumentOptions, Entity, Relationship, Document } from '../types';
+import type { EmbeddingProvider, LLMProvider } from '../services/providers/interfaces';
 
 // Mock session
 const mockSession = {
@@ -52,10 +53,33 @@ const mockNeo4jService = {
   })),
 } as any;
 
-const mockEmbeddingService = {
+// Mock providers
+const mockEmbeddingProvider = {
+  provider: 'openai',
+  model: 'text-embedding-3-small',
+  dimensions: 1536,
   generateEmbedding: mock(() => Promise.resolve(new Array(1536).fill(0.1))),
-  generateResponse: mock(() => Promise.resolve('Test answer')),
-} as any;
+  generateEmbeddings: mock(() => Promise.resolve([new Array(1536).fill(0.1)])),
+};
+
+const mockLLMProvider = {
+  provider: 'openai',
+  model: 'gpt-4',
+  generateResponse: mock((prompt, context, systemMessage) => {
+    if (systemMessage?.includes('extracting knowledge graph structures')) {
+      return Promise.resolve(JSON.stringify({
+        entities: [
+          { label: 'Person', properties: { name: 'Alice' } },
+          { label: 'Company', properties: { name: 'Acme Corp' } },
+        ],
+        relationships: [
+          { from: 'Alice', to: 'Acme Corp', type: 'WORKS_FOR', properties: {} },
+        ],
+      }));
+    }
+    return Promise.resolve('Test answer');
+  }),
+};
 
 describe('Akasha - Graph Management', () => {
   beforeEach(() => {
@@ -86,7 +110,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -110,7 +134,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -126,7 +150,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -150,7 +174,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -168,7 +192,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           // No scope
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -187,7 +211,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -211,7 +235,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -227,7 +251,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -246,7 +270,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -270,7 +294,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -286,7 +310,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -309,7 +333,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -331,7 +355,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -362,7 +386,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -379,7 +403,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -418,7 +442,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, customMockService as any, mockEmbeddingService as any);
+        }, customMockService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -459,7 +483,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -483,7 +507,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -514,7 +538,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -531,7 +555,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -554,7 +578,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -585,7 +609,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -602,7 +626,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -623,7 +647,7 @@ describe('Akasha - Graph Management', () => {
             password: 'password',
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
