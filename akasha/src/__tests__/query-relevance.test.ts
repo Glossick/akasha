@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { Akasha } from '../akasha';
-import type { Neo4jService, EmbeddingService } from '../types';
+import { createTestConfig, createMockEmbeddingProvider, createMockLLMProvider } from './test-helpers';
 
 describe('Query Relevance Filtering', () => {
   let mockNeo4jService: any;
-  let mockEmbeddingService: any;
+  let mockEmbeddingProvider: any;
+  let mockLLMProvider: any;
 
   beforeEach(() => {
     mockNeo4jService = {
@@ -20,10 +21,11 @@ describe('Query Relevance Filtering', () => {
       retrieveSubgraph: mock(() => Promise.resolve({ entities: [], relationships: [] })),
     };
 
-    mockEmbeddingService = {
-      generateEmbedding: mock(() => Promise.resolve([0.1, 0.2, 0.3])),
-      generateResponse: mock(() => Promise.resolve('Test answer')),
-    };
+    mockEmbeddingProvider = createMockEmbeddingProvider();
+    mockEmbeddingProvider.generateEmbedding = mock(() => Promise.resolve([0.1, 0.2, 0.3]));
+    
+    mockLLMProvider = createMockLLMProvider();
+    mockLLMProvider.generateResponse = mock(() => Promise.resolve('Test answer'));
   });
 
   describe('should filter out irrelevant documents with low similarity', () => {
@@ -68,20 +70,16 @@ describe('Query Relevance Filtering', () => {
       );
 
       const kg = new Akasha(
-        {
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
-          },
+        createTestConfig({
           scope: {
             id: 'test',
             type: 'test',
             name: 'Test',
           },
-        },
+        }),
         mockNeo4jService,
-        mockEmbeddingService
+        mockEmbeddingProvider,
+        mockLLMProvider
       );
 
       await kg.initialize();
@@ -129,20 +127,16 @@ describe('Query Relevance Filtering', () => {
       );
 
       const kg = new Akasha(
-        {
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
-          },
+        createTestConfig({
           scope: {
             id: 'test',
             type: 'test',
             name: 'Test',
           },
-        },
+        }),
         mockNeo4jService,
-        mockEmbeddingService
+        mockEmbeddingProvider,
+        mockLLMProvider
       );
 
       await kg.initialize();
@@ -199,20 +193,16 @@ describe('Query Relevance Filtering', () => {
       );
 
       const kg = new Akasha(
-        {
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
-          },
+        createTestConfig({
           scope: {
             id: 'test',
             type: 'test',
             name: 'Test',
           },
-        },
+        }),
         mockNeo4jService,
-        mockEmbeddingService
+        mockEmbeddingProvider,
+        mockLLMProvider
       );
 
       await kg.initialize();
@@ -280,20 +270,16 @@ describe('Query Relevance Filtering', () => {
       mockNeo4jService.getSession = mock(() => mockSession);
 
       const kg = new Akasha(
-        {
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
-          },
+        createTestConfig({
           scope: {
             id: 'test',
             type: 'test',
             name: 'Test',
           },
-        },
+        }),
         mockNeo4jService,
-        mockEmbeddingService
+        mockEmbeddingProvider,
+        mockLLMProvider
       );
 
       await kg.initialize();
@@ -317,20 +303,16 @@ describe('Query Relevance Filtering', () => {
   describe('similarity threshold configuration', () => {
     it('should use default threshold of 0.7 for better relevance', async () => {
       const kg = new Akasha(
-        {
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
-          },
+        createTestConfig({
           scope: {
             id: 'test',
             type: 'test',
             name: 'Test',
           },
-        },
+        }),
         mockNeo4jService,
-        mockEmbeddingService
+        mockEmbeddingProvider,
+        mockLLMProvider
       );
 
       await kg.initialize();
@@ -349,20 +331,16 @@ describe('Query Relevance Filtering', () => {
 
     it('should allow custom similarity threshold via QueryOptions', async () => {
       const kg = new Akasha(
-        {
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
-          },
+        createTestConfig({
           scope: {
             id: 'test',
             type: 'test',
             name: 'Test',
           },
-        },
+        }),
         mockNeo4jService,
-        mockEmbeddingService
+        mockEmbeddingProvider,
+        mockLLMProvider
       );
 
       await kg.initialize();

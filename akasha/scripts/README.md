@@ -9,9 +9,21 @@ All scripts require the following environment variables:
 - `NEO4J_URI` - Neo4j connection URI (e.g., `bolt://localhost:7687`)
 - `NEO4J_USER` - Neo4j username
 - `NEO4J_PASSWORD` - Neo4j password
-- `OPENAI_API_KEY` - OpenAI API key
+- `OPENAI_API_KEY` - OpenAI API key (required for embeddings)
+
+Optional (for testing different LLM providers):
+- `ANTHROPIC_API_KEY` - Anthropic API key (for Claude models)
+- `DEEPSEEK_API_KEY` - DeepSeek API key (for DeepSeek models)
 
 ## Scripts
+
+### `test-deepseek-e2e.ts`
+
+Quick E2E test for DeepSeek provider integration. Tests entity extraction and query answering with real API calls.
+
+```bash
+bun run scripts/test-deepseek-e2e.ts
+```
 
 ### `test-integration.ts`
 
@@ -70,10 +82,15 @@ bun test
 export NEO4J_URI=bolt://localhost:7687
 export NEO4J_USER=neo4j
 export NEO4J_PASSWORD=your-password
-export OPENAI_API_KEY=your-api-key
+export OPENAI_API_KEY=your-openai-key
+export ANTHROPIC_API_KEY=your-anthropic-key  # Optional
+export DEEPSEEK_API_KEY=your-deepseek-key    # Optional
 
-# Run integration tests
+# Run all integration tests (includes multi-provider tests)
 bun test src/__tests__/integration
+
+# Run specific multi-provider tests
+bun test src/__tests__/integration/multi-provider.test.ts
 ```
 
 Or use the test script:

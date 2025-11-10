@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, mock } from 'bun:test';
 import { Akasha } from '../akasha';
 import type { Scope, HealthStatus } from '../types';
+import type { EmbeddingProvider, LLMProvider } from '../services/providers/interfaces';
 
 const mockSession = {
   run: mock(() => Promise.resolve({
@@ -29,8 +30,18 @@ describe('Akasha - Health Check', () => {
       verifyConnectivity: mock(() => Promise.resolve()),
     } as any;
 
-    const mockEmbeddingService = {
+    const mockEmbeddingProvider: EmbeddingProvider = {
+      provider: 'openai',
+      model: 'text-embedding-3-small',
+      dimensions: 1536,
       generateEmbedding: mock(() => Promise.resolve(new Array(1536).fill(0.1))),
+      generateEmbeddings: mock(() => Promise.resolve([new Array(1536).fill(0.1)])),
+    } as any;
+
+    const mockLLMProvider: LLMProvider = {
+      provider: 'openai',
+      model: 'gpt-4',
+      generateResponse: mock(() => Promise.resolve('Test answer')),
     } as any;
 
     const akasha = new Akasha({
@@ -40,10 +51,23 @@ describe('Akasha - Health Check', () => {
         password: 'password',
       },
       scope,
-      openai: {
-        apiKey: 'test-key',
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -69,8 +93,18 @@ describe('Akasha - Health Check', () => {
       verifyConnectivity: mock(() => Promise.reject(new Error('Connection failed'))),
     } as any;
 
-    const mockEmbeddingService = {
+    const mockEmbeddingProvider: EmbeddingProvider = {
+      provider: 'openai',
+      model: 'text-embedding-3-small',
+      dimensions: 1536,
       generateEmbedding: mock(() => Promise.resolve(new Array(1536).fill(0.1))),
+      generateEmbeddings: mock(() => Promise.resolve([new Array(1536).fill(0.1)])),
+    } as any;
+
+    const mockLLMProvider: LLMProvider = {
+      provider: 'openai',
+      model: 'gpt-4',
+      generateResponse: mock(() => Promise.resolve('Test answer')),
     } as any;
 
     const akasha = new Akasha({
@@ -80,10 +114,23 @@ describe('Akasha - Health Check', () => {
         password: 'password',
       },
       scope,
-      openai: {
-        apiKey: 'test-key',
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -104,8 +151,18 @@ describe('Akasha - Health Check', () => {
       verifyConnectivity: mock(() => Promise.resolve()),
     } as any;
 
-    const mockEmbeddingService = {
+    const mockEmbeddingProvider: EmbeddingProvider = {
+      provider: 'openai',
+      model: 'text-embedding-3-small',
+      dimensions: 1536,
       generateEmbedding: mock(() => Promise.reject(new Error('API key invalid'))),
+      generateEmbeddings: mock(() => Promise.reject(new Error('API key invalid'))),
+    } as any;
+
+    const mockLLMProvider: LLMProvider = {
+      provider: 'openai',
+      model: 'gpt-4',
+      generateResponse: mock(() => Promise.resolve('Test answer')),
     } as any;
 
     const akasha = new Akasha({
@@ -115,10 +172,23 @@ describe('Akasha - Health Check', () => {
         password: 'password',
       },
       scope,
-      openai: {
-        apiKey: 'invalid-key',
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'invalid-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -144,8 +214,18 @@ describe('Akasha - Health Check', () => {
       verifyConnectivity: mock(() => Promise.reject(new Error('Connection failed'))),
     } as any;
 
-    const mockEmbeddingService = {
+    const mockEmbeddingProvider: EmbeddingProvider = {
+      provider: 'openai',
+      model: 'text-embedding-3-small',
+      dimensions: 1536,
       generateEmbedding: mock(() => Promise.reject(new Error('API key invalid'))),
+      generateEmbeddings: mock(() => Promise.reject(new Error('API key invalid'))),
+    } as any;
+
+    const mockLLMProvider: LLMProvider = {
+      provider: 'openai',
+      model: 'gpt-4',
+      generateResponse: mock(() => Promise.resolve('Test answer')),
     } as any;
 
     const akasha = new Akasha({
@@ -155,10 +235,23 @@ describe('Akasha - Health Check', () => {
         password: 'password',
       },
       scope,
-      openai: {
-        apiKey: 'invalid-key',
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'invalid-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'invalid-key',
+            model: 'gpt-4',
+          },
+        },
       },
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -178,8 +271,18 @@ describe('Akasha - Health Check', () => {
       verifyConnectivity: mock(() => Promise.resolve()),
     } as any;
 
-    const mockEmbeddingService = {
+    const mockEmbeddingProvider: EmbeddingProvider = {
+      provider: 'openai',
+      model: 'text-embedding-3-small',
+      dimensions: 1536,
       generateEmbedding: mock(() => Promise.resolve(new Array(1536).fill(0.1))),
+      generateEmbeddings: mock(() => Promise.resolve([new Array(1536).fill(0.1)])),
+    } as any;
+
+    const mockLLMProvider: LLMProvider = {
+      provider: 'openai',
+      model: 'gpt-4',
+      generateResponse: mock(() => Promise.resolve('Test answer')),
     } as any;
 
     const akasha = new Akasha({
@@ -189,10 +292,23 @@ describe('Akasha - Health Check', () => {
         password: 'password',
       },
       scope,
-      openai: {
-        apiKey: 'test-key',
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 

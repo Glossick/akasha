@@ -8,7 +8,10 @@ This guide will help you set up Akasha and create your first knowledge graph fro
   - ⚠️ **Note**: Akasha currently requires Bun as the runtime. Node.js compatibility is in progress.
   - You can install the package via npm, but you must run your code with Bun.
 - **Neo4j database** (v5.0 or later, with vector index support)
-- **OpenAI API key** (for embeddings and LLM responses)
+- **API Keys** (at least one of):
+  - **OpenAI API key** - Required for embeddings, can also be used for LLM
+  - **Anthropic API key** - Optional, for Claude LLM models
+  - **DeepSeek API key** - Optional, for cost-effective DeepSeek LLM models
 
 ## Installation
 
@@ -34,7 +37,7 @@ import { akasha } from '@glossick/akasha';
 
 ## Configuration
 
-Akasha requires three essential components: a Neo4j connection, an OpenAI API key, and optionally a scope for multi-tenancy.
+Akasha requires three essential components: a Neo4j connection, provider configuration, and optionally a scope for multi-tenancy.
 
 ### Basic Configuration
 
@@ -48,10 +51,21 @@ const kg = akasha({
     password: process.env.NEO4J_PASSWORD || 'password',
     database: process.env.NEO4J_DATABASE || 'neo4j',
   },
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4', // Optional, defaults to 'gpt-4'
-    embeddingModel: 'text-embedding-3-small', // Optional, defaults to 'text-embedding-3-small'
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'gpt-4',
+      },
+    },
   },
 });
 ```
@@ -63,12 +77,38 @@ Scopes provide data isolation. Each scope represents a distinct knowledge space:
 ```typescript
 const kg = akasha({
   neo4j: { /* ... */ },
-  openai: { /* ... */ },
+  providers: { /* ... */ },
   scope: {
     id: 'tenant-1',
     type: 'tenant',
     name: 'Tenant 1',
     metadata: { /* optional */ },
+  },
+});
+```
+
+### Using Anthropic LLM
+
+Mix OpenAI embeddings with Anthropic's Claude for LLM:
+
+```typescript
+const kg = akasha({
+  neo4j: { /* ... */ },
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'anthropic',
+      config: {
+        apiKey: process.env.ANTHROPIC_API_KEY!,
+        model: 'claude-3-5-sonnet-20241022',
+      },
+    },
   },
 });
 ```
@@ -164,8 +204,21 @@ async function main() {
       user: 'neo4j',
       password: 'password',
     },
-    openai: {
-      apiKey: process.env.OPENAI_API_KEY!,
+    providers: {
+      embedding: {
+        type: 'openai',
+        config: {
+          apiKey: process.env.OPENAI_API_KEY!,
+          model: 'text-embedding-3-small',
+        },
+      },
+      llm: {
+        type: 'openai',
+        config: {
+          apiKey: process.env.OPENAI_API_KEY!,
+          model: 'gpt-4',
+        },
+      },
     },
     scope: {
       id: 'example-1',
