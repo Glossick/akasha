@@ -13,8 +13,8 @@ import type {
   EmbeddingProviderConfig,
   LLMProviderConfig,
   ProvidersConfig,
-} from '../types';
-import type { AkashaConfig } from '../types';
+} from '../../types';
+import type { AkashaConfig } from '../../types';
 import { OpenAIEmbeddingProvider } from './embedding/openai-embedding.provider';
 import { OpenAILLMProvider } from './llm/openai-llm.provider';
 import { AnthropicLLMProvider } from './llm/anthropic-llm.provider';
