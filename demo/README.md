@@ -31,7 +31,7 @@ This demo serves as:
 ### Prerequisites
 
 1. **Neo4j** running and accessible
-2. **OpenAI API key** configured
+2. **OpenAI API key** configured (required for embeddings and LLM)
 3. **Bun** runtime installed
 
 ### Setup
@@ -42,7 +42,17 @@ This demo serves as:
    NEO4J_USER=neo4j
    NEO4J_PASSWORD=your-password
    OPENAI_API_KEY=your-api-key
+   OPENAI_MODEL=gpt-4  # Optional, defaults to gpt-4
+   OPENAI_EMBEDDING_MODEL=text-embedding-3-small  # Optional
    ```
+
+**Alternative LLM Providers:**
+The demo uses OpenAI by default, but Akasha supports multiple providers:
+- OpenAI (GPT-4, GPT-4-turbo)
+- Anthropic (Claude 3.5 Sonnet, Claude 3 Opus)
+- DeepSeek (deepseek-chat, deepseek-reasoner)
+
+To use a different provider, modify `backend/src/app.ts` and update the `providers` configuration.
 
 2. Start the demo server:
    ```bash

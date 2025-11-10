@@ -29,8 +29,21 @@ const kg = akasha({
     user: 'neo4j',
     password: 'password',
   },
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY,
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'openai', // or 'anthropic'
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'gpt-4',
+      },
+    },
   },
   scope: {
     id: 'my-project',
@@ -75,7 +88,9 @@ Full documentation is available in the `docs/` directory:
 
 - **Bun runtime** (v1.1.26 or later) - Required
 - **Neo4j database** (v5.0 or later, with vector index support)
-- **OpenAI API key** (for embeddings and LLM responses)
+- **Provider API Keys**:
+  - **OpenAI** - For embeddings and/or LLM (required for embeddings currently)
+  - **Anthropic** - For LLM only (optional, use with OpenAI embeddings)
 
 ## License
 

@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, mock } from 'bun:test';
 import { Akasha } from '../akasha';
 import type { Scope, BatchProgress, BatchProgressCallback } from '../types';
+import type { EmbeddingProvider, LLMProvider } from '../services/providers/interfaces';
 
 // Mock session
 const mockSession = {
@@ -111,8 +112,18 @@ const mockNeo4jService = {
   }),
 } as any;
 
-const mockEmbeddingService = {
+// Mock providers
+const mockEmbeddingProvider: EmbeddingProvider = {
+  provider: 'openai',
+  model: 'text-embedding-3-small',
+  dimensions: 1536,
   generateEmbedding: mock(() => Promise.resolve(new Array(1536).fill(0.1))),
+  generateEmbeddings: mock(() => Promise.resolve([new Array(1536).fill(0.1)])),
+} as any;
+
+const mockLLMProvider: LLMProvider = {
+  provider: 'openai',
+  model: 'gpt-4',
   generateResponse: mock((prompt: string, context: string, systemPrompt?: string) => {
     // Return JSON for extraction requests
     if (prompt.includes('Extract all entities')) {
@@ -137,8 +148,8 @@ describe('Akasha - Progress Callbacks', () => {
     mockNeo4jService.createEntities.mockClear();
     mockNeo4jService.createRelationships.mockClear();
     mockNeo4jService.createDocument.mockClear();
-    mockEmbeddingService.generateEmbedding.mockClear();
-    mockEmbeddingService.generateResponse.mockClear();
+    mockEmbeddingProvider.generateEmbedding.mockClear();
+    mockLLMProvider.generateResponse.mockClear();
   });
 
   const scope: Scope = {
@@ -155,7 +166,7 @@ describe('Akasha - Progress Callbacks', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -203,7 +214,7 @@ describe('Akasha - Progress Callbacks', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -213,7 +224,7 @@ describe('Akasha - Progress Callbacks', () => {
     };
 
     // Make one call fail
-    mockEmbeddingService.generateResponse.mockImplementationOnce(() => {
+    mockLLMProvider.generateResponse.mockImplementationOnce(() => {
       throw new Error('LLM error');
     });
 
@@ -249,7 +260,7 @@ describe('Akasha - Progress Callbacks', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -279,7 +290,7 @@ describe('Akasha - Progress Callbacks', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -312,7 +323,7 @@ describe('Akasha - Progress Callbacks', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -333,7 +344,7 @@ describe('Akasha - Progress Callbacks', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingService as any);
+    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 

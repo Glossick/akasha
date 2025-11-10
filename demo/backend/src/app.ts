@@ -34,10 +34,21 @@ function getAkasha(): Akasha {
         password: neo4jConfig.password,
         database: neo4jConfig.database,
       },
-      openai: {
-        apiKey: openaiConfig.apiKey,
-        model: openaiConfig.model,
-        embeddingModel: openaiConfig.embeddingModel,
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: openaiConfig.apiKey,
+            model: openaiConfig.embeddingModel,
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: openaiConfig.apiKey,
+            model: openaiConfig.model,
+          },
+        },
       },
       scope: {
         id: 'backend-default',

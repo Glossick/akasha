@@ -28,7 +28,8 @@ import type {
   ConfigValidationResult,
 } from './types';
 import { Neo4jService } from './services/neo4j.service';
-import { EmbeddingService } from './services/embedding.service';
+import type { EmbeddingProvider, LLMProvider } from './services/providers/interfaces';
+import { createProvidersFromConfig } from './services/providers/factory';
 import { generateEntityText } from './utils/entity-embedding';
 import { generateExtractionPrompt } from './utils/prompt-template';
 import { scrubEmbeddings } from './utils/scrub-embeddings';
@@ -41,7 +42,8 @@ import neo4j from 'neo4j-driver';
  */
 export class Akasha {
   private neo4j: Neo4jService;
-  private embeddings: EmbeddingService;
+  private embeddingProvider: EmbeddingProvider;
+  private llmProvider: LLMProvider;
   private scope?: Scope;
   private extractionPromptConfig?: Partial<ExtractionPromptTemplate>;
   private config: AkashaConfig;
@@ -49,7 +51,8 @@ export class Akasha {
   constructor(
     config: AkashaConfig,
     neo4jService?: Neo4jService,
-    embeddingService?: EmbeddingService
+    embeddingProvider?: EmbeddingProvider,
+    llmProvider?: LLMProvider
   ) {
     this.config = config;
     this.scope = config.scope;
@@ -57,11 +60,16 @@ export class Akasha {
 
     // Initialize services
     this.neo4j = neo4jService || new Neo4jService(config.neo4j);
-    this.embeddings = embeddingService || new EmbeddingService({
-      apiKey: config.openai?.apiKey || process.env.OPENAI_API_KEY || '',
-      model: config.openai?.model,
-      embeddingModel: config.openai?.embeddingModel,
-    });
+    
+    // Initialize providers (use injected or create from config)
+    if (embeddingProvider && llmProvider) {
+      this.embeddingProvider = embeddingProvider;
+      this.llmProvider = llmProvider;
+    } else {
+      const providers = createProvidersFromConfig(config);
+      this.embeddingProvider = embeddingProvider || providers.embeddingProvider;
+      this.llmProvider = llmProvider || providers.llmProvider;
+    }
   }
 
   /**
@@ -105,12 +113,98 @@ export class Akasha {
       }
     }
 
-    // Validate OpenAI configuration (optional, but if provided, apiKey is required)
-    if (config.openai !== undefined) {
-      if (!config.openai.apiKey || typeof config.openai.apiKey !== 'string' || config.openai.apiKey.trim() === '') {
+    // Validate provider configuration (required)
+    if (!config.providers) {
+      errors.push({
+        field: 'providers',
+        message: 'Provider configuration is required. Please specify providers.embedding and providers.llm.',
+      });
+    } else {
+      // Validate embedding provider
+      if (config.providers.embedding) {
+        const embeddingType = config.providers.embedding.type;
+        const embeddingConfig = config.providers.embedding.config;
+        
+        // Validate type
+        if (!['openai', 'deepseek'].includes(embeddingType)) {
+          errors.push({
+            field: 'providers.embedding.type',
+            message: `Invalid embedding provider type: "${embeddingType}". Must be one of: openai, deepseek`,
+          });
+        }
+        
+        // Validate config
+        if (!embeddingConfig.apiKey || typeof embeddingConfig.apiKey !== 'string' || embeddingConfig.apiKey.trim() === '') {
+          errors.push({
+            field: 'providers.embedding.config.apiKey',
+            message: 'API key is required for embedding provider',
+          });
+        }
+        
+        if (!embeddingConfig.model || typeof embeddingConfig.model !== 'string' || embeddingConfig.model.trim() === '') {
+          errors.push({
+            field: 'providers.embedding.config.model',
+            message: 'Model name is required for embedding provider',
+          });
+        }
+        
+        // Validate dimensions if provided
+        if (embeddingConfig.dimensions !== undefined) {
+          if (typeof embeddingConfig.dimensions !== 'number' || embeddingConfig.dimensions <= 0) {
+            errors.push({
+              field: 'providers.embedding.config.dimensions',
+              message: 'Embedding dimensions must be a positive number',
+            });
+          }
+        }
+      } else {
         errors.push({
-          field: 'openai.apiKey',
-          message: 'OpenAI API key is required when openai configuration is provided',
+          field: 'providers.embedding',
+          message: 'Embedding provider configuration is required',
+        });
+      }
+      
+      // Validate LLM provider
+      if (config.providers.llm) {
+        const llmType = config.providers.llm.type;
+        const llmConfig = config.providers.llm.config;
+        
+        // Validate type
+        if (!['openai', 'anthropic', 'deepseek'].includes(llmType)) {
+          errors.push({
+            field: 'providers.llm.type',
+            message: `Invalid LLM provider type: "${llmType}". Must be one of: openai, anthropic, deepseek`,
+          });
+        }
+        
+        // Validate config
+        if (!llmConfig.apiKey || typeof llmConfig.apiKey !== 'string' || llmConfig.apiKey.trim() === '') {
+          errors.push({
+            field: 'providers.llm.config.apiKey',
+            message: 'API key is required for LLM provider',
+          });
+        }
+        
+        if (!llmConfig.model || typeof llmConfig.model !== 'string' || llmConfig.model.trim() === '') {
+          errors.push({
+            field: 'providers.llm.config.model',
+            message: 'Model name is required for LLM provider',
+          });
+        }
+        
+        // Validate temperature if provided
+        if (llmConfig.temperature !== undefined) {
+          if (typeof llmConfig.temperature !== 'number' || llmConfig.temperature < 0 || llmConfig.temperature > 2) {
+            errors.push({
+              field: 'providers.llm.config.temperature',
+              message: 'Temperature must be a number between 0 and 2',
+            });
+          }
+        }
+      } else {
+        errors.push({
+          field: 'providers.llm',
+          message: 'LLM provider configuration is required',
         });
       }
     }
@@ -190,7 +284,7 @@ export class Akasha {
     const similarityThreshold = options?.similarityThreshold ?? 0.7;
 
     const searchStartTime = Date.now();
-    const queryEmbedding = await this.embeddings.generateEmbedding(query);
+    const queryEmbedding = await this.embeddingProvider.generateEmbedding(query);
     let documents: Document[] = [];
     let entities: Entity[] = [];
     let entityIds: string[] = [];
@@ -326,7 +420,7 @@ export class Akasha {
 
     // Step 4: Generate response using LLM
     const llmStartTime = Date.now();
-    const answer = await this.embeddings.generateResponse(
+    const answer = await this.llmProvider.generateResponse(
       query,
       context.summary,
       'You are a helpful assistant that answers questions based on knowledge graph context. Use the provided graph structure to give accurate, contextual answers.'
@@ -410,7 +504,7 @@ export class Akasha {
       documentCreated = 0;
     } else {
       // Create new document node with system metadata
-      const documentEmbedding = await this.embeddings.generateEmbedding(text);
+      const documentEmbedding = await this.embeddingProvider.generateEmbedding(text);
       
       document = await this.neo4j.createDocument({
         properties: {
@@ -446,7 +540,7 @@ export class Akasha {
         } else {
           // Create new entity with system metadata
           const entityText = generateEntityText(extractedEntity);
-          const entityEmbedding = await this.embeddings.generateEmbedding(entityText);
+          const entityEmbedding = await this.embeddingProvider.generateEmbedding(entityText);
           
           const entityWithMetadata = {
             ...extractedEntity,
@@ -593,7 +687,7 @@ export class Akasha {
 
     const userPrompt = `Extract all entities and relationships from the following text:\n\n${text}`;
 
-    const response = await this.embeddings.generateResponse(
+    const response = await this.llmProvider.generateResponse(
       userPrompt,
       '',
       systemPrompt,
@@ -988,9 +1082,9 @@ export class Akasha {
       health.neo4j.error = error instanceof Error ? error.message : 'Unknown error';
     }
 
-    // Check OpenAI
+    // Check embedding provider
     try {
-      await this.embeddings.generateEmbedding('health check');
+      await this.embeddingProvider.generateEmbedding('health check');
       health.openai.available = true;
     } catch (error) {
       health.openai.available = false;

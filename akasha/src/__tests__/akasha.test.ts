@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll, beforeEach, mock } from 'bun:test';
 import { Akasha } from '../akasha';
 import type { Scope, Context } from '../types';
+import type { EmbeddingProvider, LLMProvider } from '../services/providers/interfaces';
 
 // Mock session for document entity retrieval
 const mockSession = {
@@ -21,10 +22,10 @@ const mockNeo4jService = {
   ensureVectorIndex: mock(() => Promise.resolve()),
   getSession: mock(() => mockSession),
   findEntitiesByVector: mock(() => Promise.resolve([
-    { id: '1', label: 'Person', properties: { name: 'Alice', scopeId: 'tenant-1' } },
+    { id: '1', label: 'Person', properties: { name: 'Alice', scopeId: 'tenant-1', _similarity: 0.9 } },
   ])),
   findDocumentsByVector: mock(() => Promise.resolve([
-    { id: 'doc1', label: 'Document', properties: { text: 'Alice works for Acme Corp.', scopeId: 'tenant-1' } },
+    { id: 'doc1', label: 'Document', properties: { text: 'Alice works for Acme Corp.', scopeId: 'tenant-1', _similarity: 0.9 } },
   ])),
   retrieveSubgraph: mock(() => Promise.resolve({
     entities: [
@@ -114,9 +115,18 @@ const mockNeo4jService = {
   }),
 } as any;
 
-const mockEmbeddingService = {
+// Mock providers
+const mockEmbeddingProvider: EmbeddingProvider = {
+  provider: 'openai',
+  model: 'text-embedding-3-small',
+  dimensions: 1536,
   generateEmbedding: mock(() => Promise.resolve(new Array(1536).fill(0.1))),
   generateEmbeddings: mock(() => Promise.resolve([new Array(1536).fill(0.1)])),
+} as any;
+
+const mockLLMProvider: LLMProvider = {
+  provider: 'openai',
+  model: 'gpt-4',
   generateResponse: mock((prompt: string, context: string, systemMessage?: string) => {
     // If it's an extraction request (has the extraction system prompt), return JSON
     if (systemMessage?.includes('extracting knowledge graph structures')) {
@@ -151,7 +161,7 @@ describe('Akasha', () => {
           password: 'password',
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
       expect(mockNeo4jService.connect).toHaveBeenCalled();
@@ -165,7 +175,7 @@ describe('Akasha', () => {
           user: 'neo4j',
           password: 'password',
         },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
       expect(mockNeo4jService.connect).toHaveBeenCalled();
@@ -178,7 +188,7 @@ describe('Akasha', () => {
           user: 'neo4j',
           password: 'password',
         },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.cleanup();
       expect(mockNeo4jService.disconnect).toHaveBeenCalled();
@@ -196,7 +206,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       expect(akasha.getScope()).toEqual(scope);
     });
@@ -204,7 +214,7 @@ describe('Akasha', () => {
     it('should return undefined when no scope configured', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       expect(akasha.getScope()).toBeUndefined();
     });
@@ -214,8 +224,10 @@ describe('Akasha', () => {
     beforeEach(() => {
       mockNeo4jService.findEntitiesByVector.mockClear();
       mockNeo4jService.retrieveSubgraph.mockClear();
-      mockEmbeddingService.generateEmbedding.mockClear();
-      mockEmbeddingService.generateResponse.mockClear();
+      mockEmbeddingProvider.generateEmbedding.mockClear();
+      mockLLMProvider.generateResponse.mockClear();
+      mockEmbeddingProvider.generateEmbedding.mockClear();
+      mockLLMProvider.generateResponse.mockClear();
     });
 
     it('should filter queries by scopeId when scope is configured', async () => {
@@ -228,7 +240,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -247,7 +259,7 @@ describe('Akasha', () => {
     it('should not filter queries when no scope is configured', async () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -261,7 +273,7 @@ describe('Akasha', () => {
     it('should return answer with context', async () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -277,7 +289,8 @@ describe('Akasha', () => {
 
   describe('Extract and Create with Scope', () => {
     beforeEach(() => {
-      mockEmbeddingService.generateEmbeddings.mockClear();
+      mockEmbeddingProvider.generateEmbeddings.mockClear();
+      mockLLMProvider.generateResponse.mockClear();
       mockNeo4jService.createEntities.mockClear();
       mockNeo4jService.createRelationships.mockClear();
     });
@@ -292,7 +305,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -319,7 +332,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -346,7 +359,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -365,12 +378,12 @@ describe('Akasha', () => {
       const tenant1 = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Tenant 1' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       const tenant2 = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-2', type: 'tenant', name: 'Tenant 2' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await tenant1.initialize();
       await tenant2.initialize();
@@ -392,7 +405,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -407,7 +420,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -425,13 +438,19 @@ describe('Akasha', () => {
         // Reset tracked state
         lastFoundDocument = null;
         lastFoundEntity = null;
+        // Clear all mocks
+        mockNeo4jService.findDocumentByText.mockClear();
+        mockNeo4jService.createDocument.mockClear();
+        mockNeo4jService.findEntityByName.mockClear();
+        mockNeo4jService.createEntities.mockClear();
+        mockNeo4jService.linkEntityToDocument.mockClear();
       });
 
       it('should add contextId to new document contextIds array', async () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -477,7 +496,7 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -528,7 +547,7 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -575,7 +594,7 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -605,7 +624,7 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -624,7 +643,7 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -644,7 +663,7 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -664,7 +683,7 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -683,7 +702,7 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingService as any);
+        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -705,10 +724,19 @@ describe('Akasha', () => {
 
   describe('Document Nodes', () => {
     beforeEach(() => {
+      // Reset tracked state
+      lastFoundDocument = null;
+      lastFoundEntity = null;
+      // Clear all mocks
       mockNeo4jService.findDocumentByText.mockClear();
       mockNeo4jService.createDocument.mockClear();
+      mockNeo4jService.findEntityByName.mockClear();
+      mockNeo4jService.createEntities.mockClear();
       mockNeo4jService.linkEntityToDocument.mockClear();
-      mockEmbeddingService.generateEmbedding.mockClear();
+      mockNeo4jService.updateDocumentContextIds.mockClear();
+      mockNeo4jService.updateEntityContextIds.mockClear();
+      mockEmbeddingProvider.generateEmbedding.mockClear();
+      mockLLMProvider.generateResponse.mockClear();
     });
 
     it('should create a document node when learning from text', async () => {
@@ -721,7 +749,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -766,7 +794,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -794,7 +822,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -852,7 +880,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -874,14 +902,15 @@ describe('Akasha', () => {
       mockNeo4jService.findEntitiesByVector.mockClear();
       mockNeo4jService.findDocumentsByVector.mockClear();
       mockNeo4jService.retrieveSubgraph.mockClear();
-      mockEmbeddingService.generateEmbedding.mockClear();
+      mockEmbeddingProvider.generateEmbedding.mockClear();
+      mockLLMProvider.generateResponse.mockClear();
     });
 
     it('should use "both" strategy by default (documents and entities)', async () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -896,7 +925,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -911,7 +940,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -926,7 +955,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -957,7 +986,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -983,7 +1012,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -1016,7 +1045,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -1041,7 +1070,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -1066,7 +1095,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -1091,7 +1120,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -1115,7 +1144,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -1146,7 +1175,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -1170,7 +1199,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -1192,7 +1221,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingService as any);
+      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
