@@ -1,0 +1,219 @@
+{
+  "documents": [
+    {
+      "file": "2024-01/meeting-founders-kickoff.md",
+      "contexts": {
+        "time": "2024-01",
+        "team": ["henry", "steven"],
+        "source": "meeting-notes",
+        "topic": ["product", "sales", "operations"],
+        "client": ["buildcorp"]
+      },
+      "validFrom": "2024-01-05"
+    },
+    {
+      "file": "2024-01/slack-pricing-discussion.md",
+      "contexts": {
+        "time": "2024-01",
+        "team": ["henry", "steven"],
+        "source": "slack",
+        "topic": ["pricing"],
+        "client": ["buildcorp"]
+      },
+      "validFrom": "2024-01-18"
+    },
+    {
+      "file": "2024-01/customer-call-buildcorp-onboarding.md",
+      "contexts": {
+        "time": "2024-01",
+        "team": ["henry", "steven"],
+        "source": "customer-call",
+        "topic": ["customer-success", "product"],
+        "client": ["buildcorp"]
+      },
+      "validFrom": "2024-01-22"
+    },
+    {
+      "file": "2024-02/meeting-founders-weekly-sync.md",
+      "contexts": {
+        "time": "2024-02",
+        "team": ["henry", "steven"],
+        "source": "meeting-notes",
+        "topic": ["product", "sales", "architecture"],
+        "client": ["buildcorp", "consultpro", "designhub"]
+      },
+      "validFrom": "2024-02-09"
+    },
+    {
+      "file": "2024-02/decision-log-pdf-vs-api-priority.md",
+      "contexts": {
+        "time": "2024-02",
+        "team": ["henry", "steven"],
+        "source": "decision-log",
+        "topic": ["features", "product"],
+        "client": ["buildcorp", "consultpro"]
+      },
+      "validFrom": "2024-02-23"
+    },
+    {
+      "file": "2024-02/customer-call-consultpro-performance-complaint.md",
+      "contexts": {
+        "time": "2024-02",
+        "team": ["steven", "sarah"],
+        "source": "customer-call",
+        "topic": ["customer-success", "architecture"],
+        "client": ["consultpro"]
+      },
+      "validFrom": "2024-02-28"
+    },
+    {
+      "file": "2024-03/slack-hiring-sarah.md",
+      "contexts": {
+        "time": "2024-03",
+        "team": ["henry", "steven"],
+        "source": "slack",
+        "topic": ["hiring", "operations"]
+      },
+      "validFrom": "2024-03-12"
+    },
+    {
+      "file": "2024-03/customer-call-megaconstruct-signup.md",
+      "contexts": {
+        "time": "2024-03",
+        "team": ["henry", "sarah"],
+        "source": "customer-call",
+        "topic": ["sales", "customer-success"],
+        "client": ["megaconstruct"]
+      },
+      "validFrom": "2024-03-28"
+    },
+    {
+      "file": "2024-03/customer-call-tinybuilders-low-engagement.md",
+      "contexts": {
+        "time": "2024-03",
+        "team": ["sarah"],
+        "source": "customer-call",
+        "topic": ["customer-success"],
+        "client": ["tinybuilders"]
+      },
+      "validFrom": "2024-03-30"
+    },
+    {
+      "file": "2024-04/decision-log-architecture-debate.md",
+      "contexts": {
+        "time": "2024-04",
+        "team": ["henry", "steven", "sarah"],
+        "source": "decision-log",
+        "topic": ["architecture", "product"],
+        "client": ["megaconstruct", "consultpro"]
+      },
+      "validFrom": "2024-04-15"
+    },
+    {
+      "file": "2024-04/internal-doc-pricing-tiers-launched.md",
+      "contexts": {
+        "time": "2024-04",
+        "team": ["henry", "steven", "sarah"],
+        "source": "internal-doc",
+        "topic": ["pricing", "product"]
+      },
+      "validFrom": "2024-04-01"
+    },
+    {
+      "file": "2024-04/slack-api-launch.md",
+      "contexts": {
+        "time": "2024-04",
+        "team": ["henry", "steven", "sarah"],
+        "source": "slack",
+        "topic": ["product", "features"],
+        "client": ["consultpro", "precisioneng"]
+      },
+      "validFrom": "2024-04-30"
+    },
+    {
+      "file": "2024-05/support-ticket-megaconstruct-churn-threat.md",
+      "contexts": {
+        "time": "2024-05",
+        "team": ["henry", "steven", "sarah"],
+        "source": "support-ticket",
+        "topic": ["customer-success", "pricing"],
+        "client": ["megaconstruct"]
+      },
+      "validFrom": "2024-05-03"
+    },
+    {
+      "file": "2024-05/customer-call-megaconstruct-retention.md",
+      "contexts": {
+        "time": "2024-05",
+        "team": ["henry", "sarah"],
+        "source": "customer-call",
+        "topic": ["customer-success", "pricing"],
+        "client": ["megaconstruct"]
+      },
+      "validFrom": "2024-05-04"
+    },
+    {
+      "file": "2024-05/slack-steven-burnout.md",
+      "contexts": {
+        "time": "2024-05",
+        "team": ["henry", "steven"],
+        "source": "slack",
+        "topic": ["operations", "hiring"]
+      },
+      "validFrom": "2024-05-18"
+    },
+    {
+      "file": "2024-05/internal-doc-performance-claims-reality.md",
+      "contexts": {
+        "time": "2024-05",
+        "team": ["henry", "steven", "sarah"],
+        "source": "internal-doc",
+        "topic": ["product", "sales"],
+        "client": ["buildcorp", "consultpro", "megaconstruct", "precisioneng"]
+      },
+      "validFrom": "2024-05-25"
+    },
+    {
+      "file": "2024-06/meeting-founders-funding-final.md",
+      "contexts": {
+        "time": "2024-06",
+        "team": ["henry", "steven"],
+        "source": "meeting-notes",
+        "topic": ["fundraising", "operations"]
+      },
+      "validFrom": "2024-06-14"
+    },
+    {
+      "file": "2024-06/customer-call-precisioneng-feedback.md",
+      "contexts": {
+        "time": "2024-06",
+        "team": ["sarah", "steven"],
+        "source": "customer-call",
+        "topic": ["customer-success", "features", "product"],
+        "client": ["precisioneng"]
+      },
+      "validFrom": "2024-06-20"
+    },
+    {
+      "file": "2024-06/internal-doc-six-month-retrospective.md",
+      "contexts": {
+        "time": "2024-06",
+        "team": ["henry", "steven", "sarah"],
+        "source": "internal-doc",
+        "topic": ["operations", "product", "fundraising", "hiring", "customer-success"]
+      },
+      "validFrom": "2024-06-28"
+    },
+    {
+      "file": "2024-06/slack-funding-celebration.md",
+      "contexts": {
+        "time": "2024-06",
+        "team": ["henry", "steven", "sarah"],
+        "source": "slack",
+        "topic": ["fundraising", "hiring", "operations"]
+      },
+      "validFrom": "2024-06-30"
+    }
+  ]
+}
+
