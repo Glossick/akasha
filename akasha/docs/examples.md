@@ -15,8 +15,21 @@ const kg = akasha({
     user: 'neo4j',
     password: 'password',
   },
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY!,
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'gpt-4',
+      },
+    },
   },
 });
 
@@ -586,8 +599,21 @@ const config = {
     user: 'neo4j',
     password: 'password',
   },
-  openai: {
-    apiKey: 'sk-test-key',
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: 'sk-test-key',
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'openai',
+      config: {
+        apiKey: 'sk-test-key',
+        model: 'gpt-4',
+      },
+    },
   },
   scope: {
     id: 'tenant-1',

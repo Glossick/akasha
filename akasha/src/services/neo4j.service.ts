@@ -163,9 +163,10 @@ export class Neo4jService {
         }
         
         if (whereConditions.length > 0) {
+          // Insert WHERE clause before RETURN statement
           query = query.replace(
-            /RETURN id\(node\)/i,
-            `WHERE ${whereConditions.join(' AND ')}\n          RETURN id(node)`
+            /LIMIT \$limit\s+RETURN/i,
+            `LIMIT $limit\n          WHERE ${whereConditions.join(' AND ')}\n          RETURN`
           );
         }
 
@@ -628,7 +629,7 @@ export class Neo4jService {
           RETURN id(node) as id, labels(node) as labels, properties(node) as properties, score
         `;
 
-        // Add scope and context filters if provided
+        // Add scope, context, and temporal filters if provided
         const whereConditions: string[] = [];
         if (scopeId) {
           whereConditions.push('node.scopeId = $scopeId');
@@ -636,11 +637,16 @@ export class Neo4jService {
         if (contexts && contexts.length > 0) {
           whereConditions.push('(node.contextIds IS NULL OR ANY(ctx IN node.contextIds WHERE ctx IN $contexts))');
         }
+        if (validAt) {
+          whereConditions.push('(node._validFrom IS NULL OR node._validFrom <= $validAt)');
+          whereConditions.push('(node._validTo IS NULL OR node._validTo >= $validAt)');
+        }
         
         if (whereConditions.length > 0) {
+          // Insert WHERE clause before RETURN statement
           query = query.replace(
-            /RETURN id\(node\)/i,
-            `WHERE ${whereConditions.join(' AND ')}\n          RETURN id(node)`
+            /LIMIT \$limit\s+RETURN/i,
+            `LIMIT $limit\n          WHERE ${whereConditions.join(' AND ')}\n          RETURN`
           );
         }
 
@@ -650,6 +656,7 @@ export class Neo4jService {
           limit: limitInt,
           ...(scopeId ? { scopeId } : {}),
           ...(contexts && contexts.length > 0 ? { contexts } : {}),
+          ...(validAt ? { validAt } : {}),
         });
 
         const vectorResults = result.records

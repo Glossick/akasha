@@ -38,5 +38,20 @@ export type {
   Document,
   ExtractResult,
   LearnOptions,
+  ProvidersConfig,
+  EmbeddingProviderConfig,
+  LLMProviderConfig,
 } from './types';
+
+// Export provider interfaces for advanced usage
+export type {
+  EmbeddingProvider,
+  LLMProvider,
+} from './services/providers/interfaces';
+
+// Export provider implementations for advanced usage
+export { OpenAIEmbeddingProvider } from './services/providers/embedding/openai-embedding.provider';
+export { OpenAILLMProvider } from './services/providers/llm/openai-llm.provider';
+export { AnthropicLLMProvider } from './services/providers/llm/anthropic-llm.provider';
+export { DeepSeekLLMProvider } from './services/providers/llm/deepseek-llm.provider';
 

@@ -47,8 +47,21 @@ async function runIntegrationTests() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: testScope,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: process.env.OPENAI_API_KEY!,
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: process.env.OPENAI_API_KEY!,
+            model: 'gpt-4',
+          },
+        },
       },
     });
 
@@ -132,8 +145,9 @@ async function runIntegrationTests() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: tenant1,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+        llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
       },
     });
 
@@ -144,8 +158,9 @@ async function runIntegrationTests() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: tenant2,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+        llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
       },
     });
 
@@ -197,8 +212,9 @@ async function runIntegrationTests() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: contextTestScope,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+        llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
       },
     });
 
@@ -278,8 +294,9 @@ async function runIntegrationTests() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: templateTestScope,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+        llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
       },
       // No extractionPrompt = uses default template
     });
@@ -299,8 +316,9 @@ async function runIntegrationTests() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: templateTestScope,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+        llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
       },
       extractionPrompt: {
         entityTypes: [
@@ -351,8 +369,9 @@ async function runIntegrationTests() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: embeddingTestScope,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+        llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
       },
     });
 
@@ -395,8 +414,9 @@ async function runIntegrationTests() {
         password: process.env.NEO4J_PASSWORD!,
       },
       scope: docTestScope,
-      openai: {
-        apiKey: process.env.OPENAI_API_KEY!,
+      providers: {
+        embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+        llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
       },
     });
 
