@@ -36,6 +36,8 @@ import { scrubEmbeddings } from './utils/scrub-embeddings';
 import { generateSystemMetadata } from './utils/system-metadata';
 import { randomUUID } from 'crypto';
 import neo4j from 'neo4j-driver';
+import { EventEmitter } from './events/event-emitter';
+import type { AkashaEvent, EventType } from './events/types';
 
 /**
  * Akasha - Main GraphRAG library class
@@ -47,6 +49,7 @@ export class Akasha {
   private scope?: Scope;
   private extractionPromptConfig?: Partial<ExtractionPromptTemplate>;
   private config: AkashaConfig;
+  private eventEmitter: EventEmitter;
 
   constructor(
     config: AkashaConfig,
@@ -69,6 +72,17 @@ export class Akasha {
       const providers = createProvidersFromConfig(config);
       this.embeddingProvider = embeddingProvider || providers.embeddingProvider;
       this.llmProvider = llmProvider || providers.llmProvider;
+    }
+
+    // Initialize event emitter
+    this.eventEmitter = new EventEmitter();
+
+    // Register handlers from config if provided
+    if (config.events?.handlers) {
+      for (const { type, handler } of config.events.handlers) {
+        // Type assertion needed because config uses string to avoid circular dependency
+        this.eventEmitter.on(type as EventType, handler as (event: AkashaEvent) => void | Promise<void>);
+      }
     }
   }
 
@@ -255,6 +269,45 @@ export class Akasha {
   }
 
   /**
+   * Register an event handler
+   * 
+   * @param eventType - Type of event to listen for
+   * @param handler - Handler function (can be async)
+   */
+  on(eventType: EventType, handler: (event: AkashaEvent) => void | Promise<void>): void {
+    this.eventEmitter.on(eventType, handler);
+  }
+
+  /**
+   * Remove an event handler
+   * 
+   * @param eventType - Type of event
+   * @param handler - Handler function to remove
+   */
+  off(eventType: EventType, handler: (event: AkashaEvent) => void | Promise<void>): void {
+    this.eventEmitter.off(eventType, handler);
+  }
+
+  /**
+   * Register an event handler that will only be called once
+   * 
+   * @param eventType - Type of event to listen for
+   * @param handler - Handler function (can be async)
+   */
+  once(eventType: EventType, handler: (event: AkashaEvent) => void | Promise<void>): void {
+    this.eventEmitter.once(eventType, handler);
+  }
+
+  /**
+   * Emit an event (internal use)
+   * 
+   * @private
+   */
+  private emit(event: AkashaEvent): void {
+    this.eventEmitter.emit(event);
+  }
+
+  /**
    * Initialize connections
    */
   async initialize(): Promise<void> {
@@ -273,6 +326,14 @@ export class Akasha {
    * Ask a question (GraphRAG query)
    */
   async ask(query: string, options?: QueryOptions): Promise<GraphRAGResponse> {
+    // Emit query.started event
+    this.emit({
+      type: 'query.started',
+      timestamp: new Date().toISOString(),
+      scopeId: this.scope?.id,
+      query,
+    });
+
     const startTime = Date.now();
     const includeStats = options?.includeStats || false;
     
@@ -470,6 +531,14 @@ export class Akasha {
       };
     }
 
+    // Emit query.completed event
+    this.emit({
+      type: 'query.completed',
+      timestamp: new Date().toISOString(),
+      scopeId: this.scope?.id,
+      query,
+    });
+
     return response;
   }
 
@@ -481,6 +550,14 @@ export class Akasha {
     if (!scopeId) {
       throw new Error('Scope is required for learning. Please configure a scope when creating Akasha instance.');
     }
+
+    // Emit learn.started event
+    this.emit({
+      type: 'learn.started',
+      timestamp: new Date().toISOString(),
+      scopeId,
+      text,
+    });
 
     // Step 1: Find or create document node (deduplication by text)
     let document: Document;
@@ -502,6 +579,14 @@ export class Akasha {
       // Document already exists - update contextIds array
       document = await this.neo4j.updateDocumentContextIds(existingDocument.id, contextId);
       documentCreated = 0;
+      
+      // Emit document.updated event (contextIds updated)
+      this.emit({
+        type: 'document.updated',
+        timestamp: new Date().toISOString(),
+        scopeId,
+        document,
+      });
     } else {
       // Create new document node with system metadata
       const documentEmbedding = await this.embeddingProvider.generateEmbedding(text);
@@ -516,10 +601,34 @@ export class Akasha {
         },
       }, documentEmbedding);
       documentCreated = 1;
+      
+      // Emit document.created event
+      this.emit({
+        type: 'document.created',
+        timestamp: new Date().toISOString(),
+        scopeId,
+        document,
+      });
     }
 
     // Step 2: Extract structure from text using LLM
+    // Emit extraction.started event
+    this.emit({
+      type: 'extraction.started',
+      timestamp: new Date().toISOString(),
+      scopeId,
+      text,
+    });
+
     const extracted = await this.extractEntitiesAndRelationships(text);
+
+    // Emit extraction.completed event
+    this.emit({
+      type: 'extraction.completed',
+      timestamp: new Date().toISOString(),
+      scopeId,
+      text,
+    });
 
     // Step 3: Check for existing entities and create new ones (with deduplication)
     const createdEntities: Entity[] = [];
@@ -537,6 +646,14 @@ export class Akasha {
           const updatedEntity = await this.neo4j.updateEntityContextIds(existingEntity.id, contextId);
           createdEntities.push(updatedEntity);
           entityNameToIdMap.set(entityName, updatedEntity.id);
+          
+          // Emit entity.updated event (contextIds updated)
+          this.emit({
+            type: 'entity.updated',
+            timestamp: new Date().toISOString(),
+            scopeId,
+            entity: updatedEntity,
+          });
         } else {
           // Create new entity with system metadata
           const entityText = generateEntityText(extractedEntity);
@@ -553,6 +670,14 @@ export class Akasha {
           const newEntity = await this.neo4j.createEntities([entityWithMetadata], [entityEmbedding]);
           createdEntities.push(newEntity[0]);
           entityNameToIdMap.set(entityName, newEntity[0].id);
+          
+          // Emit entity.created event
+          this.emit({
+            type: 'entity.created',
+            timestamp: new Date().toISOString(),
+            scopeId,
+            entity: newEntity[0],
+          });
         }
       }
     }
@@ -560,7 +685,15 @@ export class Akasha {
     // Step 4: Link entities to document via CONTAINS_ENTITY relationships
     for (const entity of createdEntities) {
       try {
-        await this.neo4j.linkEntityToDocument(document.id, entity.id, scopeId);
+        const relationship = await this.neo4j.linkEntityToDocument(document.id, entity.id, scopeId);
+        
+        // Emit relationship.created event for CONTAINS_ENTITY
+        this.emit({
+          type: 'relationship.created',
+          timestamp: new Date().toISOString(),
+          scopeId,
+          relationship,
+        });
       } catch (error) {
         // Relationship might already exist - that's okay
         console.warn(`Warning: Could not link entity ${entity.id} to document ${document.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -617,6 +750,16 @@ export class Akasha {
 
     // Step 6: Create relationships in Neo4j
     const createdRelationships = await this.neo4j.createRelationships(relationshipsToCreate);
+    
+    // Emit relationship.created events for all created relationships
+    for (const relationship of createdRelationships) {
+      this.emit({
+        type: 'relationship.created',
+        timestamp: new Date().toISOString(),
+        scopeId,
+        relationship,
+      });
+    }
 
     // Step 7: Create context (metadata, not a graph node)
     const context: Context = {
@@ -656,7 +799,7 @@ export class Akasha {
       ? { entities: createdEntities, relationships: createdRelationships }
       : scrubEmbeddings({ entities: createdEntities, relationships: createdRelationships });
 
-    return {
+    const result: ExtractResult = {
       context,
       document,
       entities: scrubbedData.entities,
@@ -668,6 +811,17 @@ export class Akasha {
         relationships: createdRelationships.length,
       },
     };
+
+    // Emit learn.completed event
+    this.emit({
+      type: 'learn.completed',
+      timestamp: new Date().toISOString(),
+      scopeId,
+      text,
+      result,
+    });
+
+    return result;
   }
 
   /**
@@ -777,6 +931,15 @@ export class Akasha {
         relationships: validRelationships,
       };
     } catch (error) {
+      // Emit learn.failed event
+      this.emit({
+        type: 'learn.failed',
+        timestamp: new Date().toISOString(),
+        scopeId: this.scope?.id,
+        text,
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      
       console.error('Failed to parse LLM response:', error);
       console.error('LLM response was:', response);
       throw new Error(`Failed to extract graph structure: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -931,6 +1094,9 @@ export class Akasha {
       throw new Error('Scope is required for learning. Please configure a scope when creating Akasha instance.');
     }
 
+    // Use existing onProgress callback and wrap it to emit events
+    const originalOnProgress = options?.onProgress;
+
     // Normalize items to BatchLearnItem format
     const normalizedItems: BatchLearnItem[] = items.map((item) => {
       if (typeof item === 'string') {
@@ -1008,6 +1174,21 @@ export class Akasha {
           };
           await onProgress(progress);
         }
+
+        // Emit batch.progress event
+        this.emit({
+          type: 'batch.progress',
+          timestamp: new Date().toISOString(),
+          scopeId,
+          progress: {
+            current: i,
+            total,
+            completed: results.length,
+            failed: errors.length,
+            currentText: truncateText(item.text),
+            estimatedTimeRemainingMs: calculateEstimatedTime(),
+          },
+        });
       } catch (error) {
         errors.push({
           index: i,
@@ -1031,6 +1212,21 @@ export class Akasha {
           };
           await onProgress(progress);
         }
+
+        // Emit batch.progress event
+        this.emit({
+          type: 'batch.progress',
+          timestamp: new Date().toISOString(),
+          scopeId,
+          progress: {
+            current: i,
+            total,
+            completed: results.length,
+            failed: errors.length,
+            currentText: truncateText(item.text),
+            estimatedTimeRemainingMs: calculateEstimatedTime(),
+          },
+        });
       }
     }
 
@@ -1045,11 +1241,21 @@ export class Akasha {
       totalRelationshipsCreated: results.reduce((sum, r) => sum + r.created.relationships, 0),
     };
 
-    return {
+    const batchResult: BatchLearnResult = {
       results,
       summary,
       ...(errors.length > 0 ? { errors } : {}),
     };
+
+    // Emit batch.completed event
+    this.emit({
+      type: 'batch.completed',
+      timestamp: new Date().toISOString(),
+      scopeId,
+      summary: batchResult.summary,
+    });
+
+    return batchResult;
   }
 
   /**
@@ -1106,7 +1312,23 @@ export class Akasha {
    */
   async deleteEntity(entityId: string): Promise<DeleteResult> {
     const scopeId = this.scope?.id;
-    return await this.neo4j.deleteEntity(entityId, scopeId);
+    
+    // Get entity before deletion for event
+    const entity = await this.neo4j.findEntityById(entityId, scopeId);
+    
+    const result = await this.neo4j.deleteEntity(entityId, scopeId);
+    
+    // Emit entity.deleted event if entity existed
+    if (entity && result.deleted) {
+      this.emit({
+        type: 'entity.deleted',
+        timestamp: new Date().toISOString(),
+        scopeId,
+        entity,
+      });
+    }
+    
+    return result;
   }
 
   /**
@@ -1114,7 +1336,23 @@ export class Akasha {
    */
   async deleteRelationship(relationshipId: string): Promise<DeleteResult> {
     const scopeId = this.scope?.id;
-    return await this.neo4j.deleteRelationship(relationshipId, scopeId);
+    
+    // Get relationship before deletion for event
+    const relationship = await this.neo4j.findRelationshipById(relationshipId, scopeId);
+    
+    const result = await this.neo4j.deleteRelationship(relationshipId, scopeId);
+    
+    // Emit relationship.deleted event if relationship existed
+    if (relationship && result.deleted) {
+      this.emit({
+        type: 'relationship.deleted',
+        timestamp: new Date().toISOString(),
+        scopeId,
+        relationship,
+      });
+    }
+    
+    return result;
   }
 
   /**
@@ -1122,7 +1360,23 @@ export class Akasha {
    */
   async deleteDocument(documentId: string): Promise<DeleteResult> {
     const scopeId = this.scope?.id;
-    return await this.neo4j.deleteDocument(documentId, scopeId);
+    
+    // Get document before deletion for event
+    const document = await this.neo4j.findDocumentById(documentId, scopeId);
+    
+    const result = await this.neo4j.deleteDocument(documentId, scopeId);
+    
+    // Emit document.deleted event if document existed
+    if (document && result.deleted) {
+      this.emit({
+        type: 'document.deleted',
+        timestamp: new Date().toISOString(),
+        scopeId,
+        document,
+      });
+    }
+    
+    return result;
   }
 
   /**
@@ -1154,7 +1408,17 @@ export class Akasha {
    */
   async updateEntity(entityId: string, options: UpdateEntityOptions): Promise<Entity> {
     const scopeId = this.scope?.id;
-    return await this.neo4j.updateEntity(entityId, options.properties || {}, scopeId);
+    const updatedEntity = await this.neo4j.updateEntity(entityId, options.properties || {}, scopeId);
+    
+    // Emit entity.updated event
+    this.emit({
+      type: 'entity.updated',
+      timestamp: new Date().toISOString(),
+      scopeId,
+      entity: updatedEntity,
+    });
+    
+    return updatedEntity;
   }
 
   /**
@@ -1162,7 +1426,17 @@ export class Akasha {
    */
   async updateRelationship(relationshipId: string, options: UpdateRelationshipOptions): Promise<Relationship> {
     const scopeId = this.scope?.id;
-    return await this.neo4j.updateRelationship(relationshipId, options.properties || {}, scopeId);
+    const updatedRelationship = await this.neo4j.updateRelationship(relationshipId, options.properties || {}, scopeId);
+    
+    // Emit relationship.updated event
+    this.emit({
+      type: 'relationship.updated',
+      timestamp: new Date().toISOString(),
+      scopeId,
+      relationship: updatedRelationship,
+    });
+    
+    return updatedRelationship;
   }
 
   /**
@@ -1170,7 +1444,17 @@ export class Akasha {
    */
   async updateDocument(documentId: string, options: UpdateDocumentOptions): Promise<Document> {
     const scopeId = this.scope?.id;
-    return await this.neo4j.updateDocument(documentId, options.properties || {}, scopeId);
+    const updatedDocument = await this.neo4j.updateDocument(documentId, options.properties || {}, scopeId);
+    
+    // Emit document.updated event
+    this.emit({
+      type: 'document.updated',
+      timestamp: new Date().toISOString(),
+      scopeId,
+      document: updatedDocument,
+    });
+    
+    return updatedDocument;
   }
 
   /**

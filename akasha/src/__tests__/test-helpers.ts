@@ -30,6 +30,20 @@ export function createMockLLMProvider(): LLMProvider {
     provider: 'test',
     model: 'test-llm',
     generateResponse: async (prompt: string, context: string, systemMessage?: string, temperature?: number) => {
+      // Check if this is an extraction prompt (contains "extract" or asks for JSON)
+      if (prompt.includes('extract') || prompt.includes('JSON') || prompt.includes('entities') || prompt.includes('relationships')) {
+        // Return valid JSON for extraction
+        return JSON.stringify({
+          entities: [
+            { label: 'Person', properties: { name: 'Alice' } },
+            { label: 'Company', properties: { name: 'Acme Corp' } },
+          ],
+          relationships: [
+            { from: 'Alice', to: 'Acme Corp', type: 'WORKS_FOR', properties: {} },
+          ],
+        });
+      }
+      // Default response for queries
       return 'Test response';
     },
   };

@@ -94,6 +94,25 @@ export interface ProvidersConfig {
 }
 
 /**
+ * Event handler configuration
+ * 
+ * Note: Using string for type to avoid circular dependency with events/types.ts
+ * The actual type will be EventType from events/types.ts
+ */
+export interface EventHandlerConfig {
+  type: string; // EventType - using string to avoid circular dependency
+  handler: (event: unknown) => void | Promise<void>;
+}
+
+/**
+ * Events configuration
+ */
+export interface EventsConfig {
+  enabled?: boolean; // Default: true
+  handlers?: EventHandlerConfig[];
+}
+
+/**
  * Akasha configuration
  */
 export interface AkashaConfig {
@@ -111,6 +130,11 @@ export interface AkashaConfig {
   
   scope?: Scope;
   extractionPrompt?: Partial<ExtractionPromptTemplate>;
+  
+  /**
+   * Events configuration (optional)
+   */
+  events?: EventsConfig;
 }
 
 /**

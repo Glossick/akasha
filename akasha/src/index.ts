@@ -43,6 +43,19 @@ export type {
   LLMProviderConfig,
 } from './types';
 
+// Export event types
+export type {
+  EventType,
+  AkashaEvent,
+  EntityEvent,
+  RelationshipEvent,
+  DocumentEvent,
+  LearnEvent,
+  ExtractionEvent,
+  QueryEvent,
+  BatchEvent,
+} from './events/types';
+
 // Export provider interfaces for advanced usage
 export type {
   EmbeddingProvider,
