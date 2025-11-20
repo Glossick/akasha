@@ -1135,7 +1135,159 @@ if (alice) {
 }
 ```
 
+## Events and Reactivity
+
+### Basic Event Handling
+
+```typescript
+// Listen for entity creation
+kg.on('entity.created', async (event) => {
+  console.log(`New entity: ${event.entity.label}`);
+  console.log(`Properties:`, event.entity.properties);
+});
+
+// Listen for learning completion
+kg.on('learn.completed', (event) => {
+  console.log(`Created ${event.result?.created.entities} entities`);
+  console.log(`Created ${event.result?.created.relationships} relationships`);
+});
+
+// Learn from text - events will be emitted
+await kg.learn('Alice works for Acme Corp.');
+```
+
+### Entity Enrichment
+
+Enrich entities with additional metadata from external APIs:
+
+```typescript
+kg.on('entity.created', async (event) => {
+  if (event.entity.label === 'Company') {
+    const companyName = event.entity.properties.name as string;
+    
+    // Fetch additional data
+    const companyData = await fetch(`https://api.example.com/companies/${companyName}`)
+      .then(res => res.json());
+    
+    // Update entity with enriched data
+    await kg.updateEntity(event.entity.id, {
+      properties: {
+        industry: companyData.industry,
+        website: companyData.website,
+        employees: companyData.employeeCount,
+      },
+    });
+  }
+});
+
+await kg.learn('Acme Corp is a technology company.');
+// Entity will be automatically enriched
+```
+
+### Observability and Monitoring
+
+Track graph changes for analytics:
+
+```typescript
+const metrics = {
+  entitiesCreated: 0,
+  relationshipsCreated: 0,
+  documentsCreated: 0,
+};
+
+kg.on('entity.created', () => metrics.entitiesCreated++);
+kg.on('relationship.created', () => metrics.relationshipsCreated++);
+kg.on('document.created', () => metrics.documentsCreated++);
+
+// Report metrics periodically
+setInterval(() => {
+  console.log('Graph metrics:', metrics);
+}, 60000);
+```
+
+### External System Integration
+
+Sync graph changes to external systems:
+
+```typescript
+// Webhook integration
+kg.on('entity.created', async (event) => {
+  if (event.entity.label === 'Person') {
+    await fetch('https://api.example.com/webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'person.created',
+        data: event.entity,
+        timestamp: event.timestamp,
+      }),
+    });
+  }
+});
+
+// Message queue integration
+kg.on('relationship.created', async (event) => {
+  await messageQueue.publish('graph.relationship.created', {
+    relationship: event.relationship,
+    scopeId: event.scopeId,
+  });
+});
+```
+
+### Batch Progress Tracking
+
+Monitor batch learning progress:
+
+```typescript
+kg.on('batch.progress', (event) => {
+  if (event.progress) {
+    const { current, total, completed, failed } = event.progress;
+    const percentage = Math.round((completed / total) * 100);
+    console.log(`Progress: ${percentage}% (${completed}/${total} completed)`);
+  }
+});
+
+kg.on('batch.completed', (event) => {
+  if (event.summary) {
+    console.log(`Batch complete: ${event.summary.succeeded} succeeded`);
+  }
+});
+
+await kg.learnBatch([
+  'Alice works for Acme Corp.',
+  'Bob works for TechCorp.',
+  'Charlie works for StartupCo.',
+]);
+```
+
+### Gap Analysis Watcher
+
+Analyze entities for missing information:
+
+```typescript
+kg.on('entity.created', async (event) => {
+  if (event.entity.label === 'Person') {
+    const gaps = [];
+    if (!event.entity.properties.email) gaps.push('email');
+    if (!event.entity.properties.phone) gaps.push('phone');
+    
+    if (gaps.length > 0) {
+      // Use LLM to analyze gaps
+      const analysis = await analyzeEntityGaps(event.entity, gaps);
+      
+      if (analysis.confidence > 0.8) {
+        // Prompt user to fill gaps
+        await promptUser({
+          entity: event.entity,
+          missingFields: gaps,
+        });
+      }
+    }
+  }
+});
+```
+
 ---
 
-**Next**: Review the [API Reference](./api-reference.md) for complete method documentation.
+**Next**: Review the [API Reference](./api-reference.md) for complete method documentation, or read [Events](./events.md) for comprehensive event system guide.
 

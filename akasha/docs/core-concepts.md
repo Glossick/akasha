@@ -181,7 +181,35 @@ This enables scenarios like:
 
 This temporal tracking aligns with Akasha's "map is not the territory" axiom: facts are recorded at a specific time (`_recordedAt`), but they may represent knowledge that was true at different times (`_validFrom`/`_validTo`).
 
+## Events and Reactivity
+
+Akasha includes a built-in event system that enables reactive programming patterns. Events are emitted automatically during graph operations (create, update, delete), learning lifecycle, and queries.
+
+**Key Characteristics:**
+- **Asynchronous**: Handlers execute asynchronously (fire-and-forget) to avoid blocking
+- **Type-Safe**: All events are fully typed with TypeScript
+- **Extensible**: Build enrichment, watchers, and custom integrations on top of events
+
+**Common Use Cases:**
+- Enrich entities with external API data
+- Monitor graph changes for observability
+- Integrate with external systems (webhooks, message queues)
+- Build reactive workflows that respond to graph mutations
+
+**Example:**
+```typescript
+kg.on('entity.created', async (event) => {
+  // Automatically enrich Company entities
+  if (event.entity.label === 'Company') {
+    const data = await fetchCompanyData(event.entity.properties.name);
+    await kg.updateEntity(event.entity.id, { properties: data });
+  }
+});
+```
+
+**See**: [Events Documentation](./events.md) for complete event system guide.
+
 ---
 
-**Next**: Read [API Reference](./api-reference.md) for detailed method documentation, or [Ontologies](./ontologies.md) to customize extraction behavior.
+**Next**: Read [API Reference](./api-reference.md) for detailed method documentation, [Events](./events.md) to learn about reactivity patterns, or [Ontologies](./ontologies.md) to customize extraction behavior.
 

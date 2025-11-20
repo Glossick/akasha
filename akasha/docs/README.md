@@ -11,6 +11,7 @@ Akasha is a minimal, developer-friendly GraphRAG library that transforms natural
 - [Providers](./providers.md) - Configuring embedding and LLM providers
 - [Design Principles](./philosophy.md) - Design principles and architecture decisions
 - [API Reference](./api-reference.md) - Complete API documentation
+- [Events](./events.md) - Event system and reactivity patterns
 - [Ontologies](./ontologies.md) - Working with custom ontologies
 - [Multi-Tenancy](./multi-tenancy.md) - Scope and context management
 - [Examples](./examples.md) - Practical examples and patterns

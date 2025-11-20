@@ -1,28 +1,19 @@
 # Akasha
 
-A minimal, developer-friendly GraphRAG library that transforms natural language into structured knowledge graphs and enables semantic querying over that knowledge.
+Transform text into knowledge graphs. Query by meaning, not keywords.
 
-> **⚠️ Runtime Requirement**: Akasha currently requires the [Bun](https://bun.sh) runtime (v1.1.26 or later). Node.js compatibility is in progress. The package can be installed via npm, but code must be executed with Bun.
-
-## Installation
+> **⚠️ Runtime Requirement**: Akasha currently requires the [Bun](https://bun.sh) runtime (v1.1.26 or later). Node.js compatibility is in progress.
 
 ```bash
 bun add @glossick/akasha
 ```
 
-Or with npm:
-
-```bash
-npm install @glossick/akasha
-```
-
-**Note**: While the package can be installed via npm, Akasha currently requires the Bun runtime to execute. Node.js compatibility is being worked on.
-
-## Quick Start
+## What if your application could understand?
 
 ```typescript
 import { akasha } from '@glossick/akasha';
 
+// Mix and match providers - OpenAI embeddings with Anthropic LLM
 const kg = akasha({
   neo4j: {
     uri: 'bolt://localhost:7687',
@@ -38,10 +29,10 @@ const kg = akasha({
       },
     },
     llm: {
-      type: 'openai', // or 'anthropic'
+      type: 'anthropic', // or 'openai', 'deepseek'
       config: {
-        apiKey: process.env.OPENAI_API_KEY!,
-        model: 'gpt-4',
+        apiKey: process.env.ANTHROPIC_API_KEY!,
+        model: 'claude-3-5-sonnet-20241022',
       },
     },
   },
@@ -54,45 +45,163 @@ const kg = akasha({
 
 await kg.initialize();
 
-// Learn from text
+// Feed it knowledge
 await kg.learn('Alice works for Acme Corp. Bob works for TechCorp. Alice knows Bob.');
 
-// Query the knowledge
+// Ask anything
 const result = await kg.ask('What is the relationship between Alice and Bob?');
 console.log(result.answer);
+```
 
-await kg.cleanup();
+## React to knowledge as it forms
+
+```typescript
+// Watch the graph grow
+kg.on('entity.created', async (event) => {
+  if (event.entity.label === 'Company') {
+    // Enrich automatically
+    const data = await fetchCompanyData(event.entity.properties.name);
+    await kg.updateEntity(event.entity.id, { properties: data });
+  }
+});
+
+// Track what matters
+kg.on('relationship.created', (event) => {
+  analytics.track('relationship_created', {
+    type: event.relationship.type,
+    scope: event.scopeId,
+  });
+});
+
+// Build reactive workflows
+kg.on('learn.completed', async (event) => {
+  await notifyTeam(event.result?.entities.length);
+  await updateDashboard(event.result);
+});
+```
+
+## Query across time and context
+
+```typescript
+// What was true then?
+const historical = await kg.ask('Who worked at Acme Corp?', {
+  validAt: new Date('2023-01-01'),
+});
+
+// What's true now?
+const current = await kg.ask('Who works at Acme Corp?');
+
+// Search specific knowledge sources
+const handbook = await kg.ask('What is company policy?', {
+  contexts: ['handbook'],
+});
+
+// Combine multiple sources
+const comprehensive = await kg.ask('What do we know about Alice?', {
+  contexts: ['handbook', 'interviews', 'meetings'],
+});
+```
+
+## Define your own reality
+
+```typescript
+const customOntology = {
+  entityTypes: [
+    {
+      label: 'Customer',
+      description: 'A customer who makes purchases',
+      requiredProperties: ['email', 'name'],
+    },
+    {
+      label: 'Product',
+      description: 'A product for sale',
+      requiredProperties: ['sku', 'name'],
+    },
+  ],
+  relationshipTypes: [
+    {
+      type: 'PURCHASED',
+      description: 'Customer purchased a product',
+      from: ['Customer'],
+      to: ['Product'],
+    },
+  ],
+};
+
+const kg = akasha({
+  neo4j: { /* ... */ },
+  extractionPrompt: customOntology,
+});
+
+// Now it understands your domain
+await kg.learn('John Doe purchased an iPhone 15.');
+```
+
+## Isolate. Scale. Deploy.
+
+```typescript
+// Each tenant gets their own knowledge space
+function createTenantKG(tenantId: string) {
+  return akasha({
+    neo4j: { /* ... */ },
+    providers: {
+      embedding: {
+        type: 'openai',
+        config: {
+          apiKey: process.env.OPENAI_API_KEY!,
+          model: 'text-embedding-3-small',
+        },
+      },
+      llm: {
+        type: 'deepseek', // Cost-effective option
+        config: {
+          apiKey: process.env.DEEPSEEK_API_KEY!,
+          model: 'deepseek-chat',
+        },
+      },
+    },
+    scope: {
+      id: `tenant-${tenantId}`,
+      type: 'tenant',
+      name: `Tenant ${tenantId}`,
+    },
+  });
+}
+
+// Process thousands of documents
+await kg.learnBatch(documents, {
+  onProgress: (progress) => {
+    console.log(`${progress.completed}/${progress.total} processed`);
+  },
+});
 ```
 
 ## Features
 
-- **Semantic Search**: Vector-based similarity search for documents and entities
-- **Multi-Tenancy**: Scope-based data isolation
-- **Document Nodes**: First-class document representation with deduplication
-- **Temporal Tracking**: Optional validity periods for facts
-- **Batch Learning**: Process multiple texts efficiently
-- **Health Checks**: Monitor Neo4j and OpenAI connectivity
-- **Query Statistics**: Performance metrics for queries
-- **Graph Management**: Create, update, delete, and query entities, relationships, and documents
-
-## Documentation
-
-Full documentation is available in the `docs/` directory:
-
-- [Getting Started](https://github.com/Glossick/akasha/blob/HEAD/akasha/docs/getting-started.md) - Quick start guide
-- [Core Concepts](https://github.com/Glossick/akasha/blob/HEAD/akasha/docs/core-concepts.md) - Understanding Akasha's architecture
-- [API Reference](https://github.com/Glossick/akasha/blob/HEAD/akasha/docs/api-reference.md) - Complete API documentation
-- [Examples](https://github.com/Glossick/akasha/blob/HEAD/akasha/docs/examples.md) - Practical examples and patterns
+- **Semantic Search** - Find by meaning, not keywords
+- **Event System** - React to graph changes in real-time
+- **Multi-Tenancy** - Isolated knowledge spaces
+- **Temporal Queries** - Ask "what was true then?"
+- **Custom Ontologies** - Define your domain
+- **Batch Processing** - Scale to millions of documents
+- **Type-Safe** - Full TypeScript support
 
 ## Requirements
 
-- **Bun runtime** (v1.1.26 or later) - Required
-- **Neo4j database** (v5.0 or later, with vector index support)
+- **Bun runtime** (v1.1.26+) - Required
+- **Neo4j** (v5.0+) - With vector index support
 - **Provider API Keys**:
-  - **OpenAI** - For embeddings and/or LLM (required for embeddings currently)
-  - **Anthropic** - For LLM only (optional, use with OpenAI embeddings)
+  - **Embeddings**: OpenAI (required)
+  - **LLM**: OpenAI, Anthropic, or DeepSeek (choose one)
+
+## Documentation
+
+- [Getting Started](https://github.com/Glossick/akasha/blob/HEAD/akasha/docs/getting-started.md) - Set up in minutes
+- [Core Concepts](https://github.com/Glossick/akasha/blob/HEAD/akasha/docs/core-concepts.md) - How it works
+- [Events](https://github.com/Glossick/akasha/blob/HEAD/akasha/docs/events.md) - Build reactive systems
+- [Examples](https://github.com/Glossick/akasha/blob/HEAD/akasha/docs/examples.md) - Patterns and use cases
+- [API Reference](https://github.com/Glossick/akasha/blob/HEAD/akasha/docs/api-reference.md) - Complete API docs
 
 ## License
 
-Apache License 2.0 - See [LICENSE](./LICENSE) for details.
-
+Apache License 2.0

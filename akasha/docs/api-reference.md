@@ -31,6 +31,9 @@ Creates and returns an Akasha instance.
     - `config.temperature?: number` - Default temperature (OpenAI/DeepSeek: 0-2, Anthropic: 0-1)
 - `config.scope?: Scope` - Scope configuration for multi-tenancy
 - `config.extractionPrompt?: Partial<ExtractionPromptTemplate>` - Custom extraction prompt template
+- `config.events?: EventsConfig` - Event system configuration (optional)
+  - `enabled?: boolean` - Enable/disable events (default: `true`)
+  - `handlers?: EventHandlerConfig[]` - Pre-registered event handlers
 
 **Returns:** `Akasha` instance
 
@@ -1119,5 +1122,106 @@ try {
 
 ---
 
-**Next**: Read [Ontologies](./ontologies.md) to customize extraction behavior, or [Multi-Tenancy](./multi-tenancy.md) for scope management patterns.
+## Event System
+
+### `on(eventType: EventType, handler: (event: AkashaEvent) => void | Promise<void>): void`
+
+Register an event handler for a specific event type.
+
+**Parameters:**
+- `eventType: EventType` - The type of event to listen for
+- `handler: (event: AkashaEvent) => void | Promise<void>` - Handler function (can be async)
+
+**Event Types:**
+- Graph mutations: `'entity.created'`, `'entity.updated'`, `'entity.deleted'`, `'relationship.created'`, `'relationship.updated'`, `'relationship.deleted'`, `'document.created'`, `'document.updated'`, `'document.deleted'`
+- Learning lifecycle: `'learn.started'`, `'learn.completed'`, `'learn.failed'`, `'extraction.started'`, `'extraction.completed'`
+- Query operations: `'query.started'`, `'query.completed'`
+- Batch operations: `'batch.progress'`, `'batch.completed'`
+
+**Example:**
+```typescript
+kg.on('entity.created', async (event) => {
+  console.log(`Entity created: ${event.entity.label}`);
+  // Enrich entity with external data
+  await enrichEntity(event.entity);
+});
+
+kg.on('learn.completed', (event) => {
+  console.log(`Learning completed: ${event.result?.entities.length} entities`);
+});
+```
+
+**Note**: Handlers execute asynchronously (fire-and-forget) and don't block main operations.
+
+---
+
+### `off(eventType: EventType, handler: (event: AkashaEvent) => void | Promise<void>): void`
+
+Remove an event handler.
+
+**Parameters:**
+- `eventType: EventType` - The type of event
+- `handler: (event: AkashaEvent) => void | Promise<void>` - The handler function to remove
+
+**Example:**
+```typescript
+const handler = (event: EntityEvent) => {
+  console.log('Entity created');
+};
+
+kg.on('entity.created', handler);
+
+// Later, remove the handler
+kg.off('entity.created', handler);
+```
+
+---
+
+### `once(eventType: EventType, handler: (event: AkashaEvent) => void | Promise<void>): void`
+
+Register an event handler that will only be called once.
+
+**Parameters:**
+- `eventType: EventType` - The type of event to listen for
+- `handler: (event: AkashaEvent) => void | Promise<void>` - Handler function (can be async)
+
+**Example:**
+```typescript
+kg.once('learn.completed', (event) => {
+  console.log('First learning operation completed!');
+});
+
+await kg.learn('First text'); // Handler called
+await kg.learn('Second text'); // Handler NOT called
+```
+
+---
+
+### Event Configuration
+
+You can register event handlers at initialization via `AkashaConfig`:
+
+```typescript
+const kg = akasha({
+  neo4j: { /* ... */ },
+  providers: { /* ... */ },
+  events: {
+    enabled: true, // Default: true
+    handlers: [
+      {
+        type: 'entity.created',
+        handler: async (event) => {
+          // Handler registered at initialization
+        },
+      },
+    ],
+  },
+});
+```
+
+**See**: [Events Documentation](./events.md) for complete event system guide and patterns.
+
+---
+
+**Next**: Read [Events](./events.md) for event patterns and use cases, [Ontologies](./ontologies.md) to customize extraction behavior, or [Multi-Tenancy](./multi-tenancy.md) for scope management patterns.
 
