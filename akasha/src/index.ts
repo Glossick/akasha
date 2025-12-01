@@ -51,7 +51,6 @@ export type {
   DatabaseType,
   DatabaseConfig,
   Neo4jConfig,
-  KuzuConfig,
   LadybugConfig,
   QueryOptions,
   QueryStrategy,
