@@ -1,6 +1,6 @@
 {
   "name": "@glossick/akasha",
-  "version": "0.9.12",
+  "version": "0.9.2",
   "description": "A minimal, developer-friendly GraphRAG library with multi-tenant support",
   "type": "module",
   "main": "./dist/index.js",
@@ -22,7 +22,7 @@
     "build": "tsc && node scripts/fix-esm-imports.js",
     "prepublishOnly": "npm run build",
     "test": "bun test",
-    "test:integration": "bun test src/__tests__/integration",
+    "test:integration": "bun test --timeout 60000 src/__tests__/integration",
     "test:unit": "bun test src/__tests__ --exclude integration",
     "demo": "bun run scripts/demo.ts",
     "test:script": "bun run scripts/test-integration.ts",
@@ -51,6 +51,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "lbug": "^0.12.2",
     "neo4j-driver": "^6.0.1",
     "openai": "^6.8.1"
   },

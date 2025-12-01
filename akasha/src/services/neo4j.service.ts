@@ -136,6 +136,28 @@ export class Neo4jService {
 
       // Try vector index search first
       try {
+        // Build WHERE conditions
+        const whereConditions: string[] = [];
+        if (scopeId) {
+          whereConditions.push('node.scopeId = $scopeId');
+        }
+        if (contexts && contexts.length > 0) {
+          // Only include entities that have at least one matching contextId
+          // Exclude entities with NULL contextIds when contexts are specified
+          whereConditions.push('(node.contextIds IS NOT NULL AND ANY(ctx IN node.contextIds WHERE ctx IN $contexts))');
+        }
+        if (validAt) {
+          whereConditions.push('(node._validFrom IS NULL OR node._validFrom <= $validAt)');
+          whereConditions.push('(node._validTo IS NULL OR node._validTo >= $validAt)');
+        }
+        
+        // Calculate k parameter: increase when filters are present to account for filtering
+        const hasFilters = !!(scopeId || (contexts && contexts.length > 0) || validAt);
+        const k = hasFilters 
+          ? Math.max(limitInt.toNumber() * 5, 50)  // Request 5x more if filtering, minimum 50
+          : limitInt.toNumber();  // Normal amount if no filters
+        
+        // Build query with WHERE clause in correct position (after YIELD, before WITH)
         let query = `
           CALL db.index.vector.queryNodes(
             'entity_vector_index',
@@ -143,37 +165,21 @@ export class Neo4jService {
             $queryVector
           )
           YIELD node, score
+        `;
+        
+        if (whereConditions.length > 0) {
+          query += `\n          WHERE ${whereConditions.join(' AND ')}`;
+        }
+        
+        query += `
           WITH node, score
           ORDER BY score DESC
-          LIMIT $limit
           RETURN id(node) as id, labels(node) as labels, properties(node) as properties, score
         `;
 
-        // Add scope, context, and temporal filters if provided
-        const whereConditions: string[] = [];
-        if (scopeId) {
-          whereConditions.push('node.scopeId = $scopeId');
-        }
-        if (contexts && contexts.length > 0) {
-          whereConditions.push('(node.contextIds IS NULL OR ANY(ctx IN node.contextIds WHERE ctx IN $contexts))');
-        }
-        if (validAt) {
-          whereConditions.push('(node._validFrom IS NULL OR node._validFrom <= $validAt)');
-          whereConditions.push('(node._validTo IS NULL OR node._validTo >= $validAt)');
-        }
-        
-        if (whereConditions.length > 0) {
-          // Insert WHERE clause before RETURN statement
-          query = query.replace(
-            /LIMIT \$limit\s+RETURN/i,
-            `LIMIT $limit\n          WHERE ${whereConditions.join(' AND ')}\n          RETURN`
-          );
-        }
-
         const result = await session.run(query, {
-          k: limitInt,
+          k: neo4j.int(k),
           queryVector: queryEmbedding,
-          limit: limitInt,
           ...(scopeId ? { scopeId } : {}),
           ...(contexts && contexts.length > 0 ? { contexts } : {}),
           ...(validAt ? { validAt } : {}),
@@ -191,7 +197,8 @@ export class Neo4jService {
           .filter((e) => {
             const score = e.properties._similarity as number;
             return score >= similarityThreshold;
-          });
+          })
+          .slice(0, limit); // Limit in code after filtering, not in query
 
         if (vectorResults.length > 0) {
           return vectorResults;
@@ -212,7 +219,9 @@ export class Neo4jService {
       }
       
       if (contexts && contexts.length > 0) {
-        fallbackQuery += ` AND (n.contextIds IS NULL OR ANY(ctx IN n.contextIds WHERE ctx IN $contexts))`;
+        // Only include entities that have at least one matching contextId
+        // Exclude entities with NULL contextIds when contexts are specified
+        fallbackQuery += ` AND (n.contextIds IS NOT NULL AND ANY(ctx IN n.contextIds WHERE ctx IN $contexts))`;
       }
       
       if (validAt) {
@@ -321,14 +330,32 @@ export class Neo4jService {
         relationshipFilter = `ALL(r IN rels WHERE type(r) IN [${relTypesList}])`;
       }
 
-      let combinedWhereClause = '';
-      if (whereClause && relationshipFilter) {
-        combinedWhereClause = `${whereClause} AND ${relationshipFilter}`;
-      } else if (whereClause) {
-        combinedWhereClause = whereClause;
-      } else if (relationshipFilter) {
-        combinedWhereClause = `WHERE ${relationshipFilter}`;
+      // Add scopeId filters for end nodes and relationships
+      let scopeFilters: string[] = [];
+      if (scopeId) {
+        // Filter end nodes by scopeId
+        scopeFilters.push(`end.scopeId = $scopeId`);
+        // Filter relationships by scopeId (all relationships in path must have matching scopeId)
+        scopeFilters.push(`ALL(r IN rels WHERE r.scopeId = $scopeId)`);
       }
+
+      // Combine all WHERE conditions
+      const allConditions: string[] = [];
+      if (whereClause) {
+        // whereClause already includes "WHERE" prefix, so extract just the conditions
+        const conditions = whereClause.replace(/^WHERE\s+/i, '');
+        allConditions.push(conditions);
+      }
+      if (relationshipFilter) {
+        allConditions.push(relationshipFilter);
+      }
+      if (scopeFilters.length > 0) {
+        allConditions.push(...scopeFilters);
+      }
+
+      const combinedWhereClause = allConditions.length > 0
+        ? `WHERE ${allConditions.join(' AND ')}`
+        : '';
 
       const query = `
         MATCH path = ${startNodePattern}-[rels*1..${maxDepthInt}]-(end)
@@ -616,6 +643,28 @@ export class Neo4jService {
 
       // Try vector index search first
       try {
+        // Build WHERE conditions
+        const whereConditions: string[] = [];
+        if (scopeId) {
+          whereConditions.push('node.scopeId = $scopeId');
+        }
+        if (contexts && contexts.length > 0) {
+          // Only include documents that have at least one matching contextId
+          // Exclude documents with NULL contextIds when contexts are specified
+          whereConditions.push('(node.contextIds IS NOT NULL AND ANY(ctx IN node.contextIds WHERE ctx IN $contexts))');
+        }
+        if (validAt) {
+          whereConditions.push('(node._validFrom IS NULL OR node._validFrom <= $validAt)');
+          whereConditions.push('(node._validTo IS NULL OR node._validTo >= $validAt)');
+        }
+        
+        // Calculate k parameter: increase when filters are present to account for filtering
+        const hasFilters = !!(scopeId || (contexts && contexts.length > 0) || validAt);
+        const k = hasFilters 
+          ? Math.max(limitInt.toNumber() * 5, 50)  // Request 5x more if filtering, minimum 50
+          : limitInt.toNumber();  // Normal amount if no filters
+        
+        // Build query with WHERE clause in correct position (after YIELD, before WITH)
         let query = `
           CALL db.index.vector.queryNodes(
             'document_vector_index',
@@ -623,37 +672,21 @@ export class Neo4jService {
             $queryVector
           )
           YIELD node, score
+        `;
+        
+        if (whereConditions.length > 0) {
+          query += `\n          WHERE ${whereConditions.join(' AND ')}`;
+        }
+        
+        query += `
           WITH node, score
           ORDER BY score DESC
-          LIMIT $limit
           RETURN id(node) as id, labels(node) as labels, properties(node) as properties, score
         `;
 
-        // Add scope, context, and temporal filters if provided
-        const whereConditions: string[] = [];
-        if (scopeId) {
-          whereConditions.push('node.scopeId = $scopeId');
-        }
-        if (contexts && contexts.length > 0) {
-          whereConditions.push('(node.contextIds IS NULL OR ANY(ctx IN node.contextIds WHERE ctx IN $contexts))');
-        }
-        if (validAt) {
-          whereConditions.push('(node._validFrom IS NULL OR node._validFrom <= $validAt)');
-          whereConditions.push('(node._validTo IS NULL OR node._validTo >= $validAt)');
-        }
-        
-        if (whereConditions.length > 0) {
-          // Insert WHERE clause before RETURN statement
-          query = query.replace(
-            /LIMIT \$limit\s+RETURN/i,
-            `LIMIT $limit\n          WHERE ${whereConditions.join(' AND ')}\n          RETURN`
-          );
-        }
-
         const result = await session.run(query, {
-          k: limitInt,
+          k: neo4j.int(k),
           queryVector: queryEmbedding,
-          limit: limitInt,
           ...(scopeId ? { scopeId } : {}),
           ...(contexts && contexts.length > 0 ? { contexts } : {}),
           ...(validAt ? { validAt } : {}),
@@ -671,7 +704,8 @@ export class Neo4jService {
           .filter((d) => {
             const score = d.properties._similarity as number;
             return score >= similarityThreshold;
-          });
+          })
+          .slice(0, limit); // Limit in code after filtering, not in query
 
         if (vectorResults.length > 0) {
           return vectorResults;
@@ -692,7 +726,9 @@ export class Neo4jService {
       }
       
       if (contexts && contexts.length > 0) {
-        fallbackQuery += ` AND (d.contextIds IS NULL OR ANY(ctx IN d.contextIds WHERE ctx IN $contexts))`;
+        // Only include documents that have at least one matching contextId
+        // Exclude documents with NULL contextIds when contexts are specified
+        fallbackQuery += ` AND (d.contextIds IS NOT NULL AND ANY(ctx IN d.contextIds WHERE ctx IN $contexts))`;
       }
       
       if (validAt) {
@@ -773,6 +809,61 @@ export class Neo4jService {
       };
     } finally {
       await session.close();
+    }
+  }
+
+  /**
+   * Get entities connected to documents via CONTAINS_ENTITY relationships
+   * Replaces direct getSession() usage in akasha.ts
+   */
+  async getEntitiesFromDocuments(documentIds: string[], scopeId?: string): Promise<Entity[]> {
+    const session = this.getSession();
+    try {
+      if (documentIds.length === 0) {
+        return [];
+      }
+
+      const docIdsList = documentIds.map(id => neo4j.int(id).toString()).join(', ');
+      let query = `
+        MATCH (d:Document)-[:CONTAINS_ENTITY]->(e:Entity)
+        WHERE id(d) IN [${docIdsList}]
+      `;
+      
+      if (scopeId) {
+        query += ` AND d.scopeId = $scopeId AND e.scopeId = $scopeId`;
+      }
+      
+      query += `
+        RETURN DISTINCT id(e) as id, labels(e) as labels, properties(e) as properties
+      `;
+
+      const result = await session.run(query, scopeId ? { scopeId } : {});
+      
+      return result.records.map((record: any) => ({
+        id: record.get('id').toString(),
+        label: record.get('labels')[0] || 'Unknown',
+        properties: record.get('properties') || {},
+      }));
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Simple connectivity check for health checks
+   * Replaces getSession() + session.run('RETURN 1') usage
+   */
+  async ping(): Promise<boolean> {
+    try {
+      const session = this.getSession();
+      try {
+        await session.run('RETURN 1');
+        return true;
+      } finally {
+        await session.close();
+      }
+    } catch (error) {
+      return false;
     }
   }
 
@@ -1303,6 +1394,37 @@ export class Neo4jService {
       const filteredProperties = Object.fromEntries(
         Object.entries(properties).filter(([key]) => !protectedFields.includes(key))
       );
+
+      // Validate that all property values are primitive types (Neo4j requirement)
+      const invalidProperties: string[] = [];
+      for (const [key, value] of Object.entries(filteredProperties)) {
+        if (value !== null && 
+            typeof value !== 'string' && 
+            typeof value !== 'number' && 
+            typeof value !== 'boolean' &&
+            !Array.isArray(value)) {
+          invalidProperties.push(key);
+        } else if (Array.isArray(value)) {
+          // Arrays must contain only primitives
+          const hasNonPrimitive = value.some(item => 
+            item !== null &&
+            typeof item !== 'string' &&
+            typeof item !== 'number' &&
+            typeof item !== 'boolean'
+          );
+          if (hasNonPrimitive) {
+            invalidProperties.push(key);
+          }
+        }
+      }
+
+      if (invalidProperties.length > 0) {
+        throw new Error(
+          `Neo4j property values must be primitive types or arrays of primitives. ` +
+          `Invalid properties: ${invalidProperties.join(', ')}. ` +
+          `Consider flattening nested objects (e.g., metadata.source → metadata_source) or serializing to JSON strings.`
+        );
+      }
 
       let query = `
         MATCH (d:Document)

@@ -16,11 +16,12 @@ let lastFoundDocument: any = null;
 let lastFoundEntity: any = null;
 
 // Mock dependencies
-const mockNeo4jService = {
+const mockDatabaseProvider = {
   connect: mock(() => Promise.resolve()),
   disconnect: mock(() => Promise.resolve()),
   ensureVectorIndex: mock(() => Promise.resolve()),
-  getSession: mock(() => mockSession),
+  getEntitiesFromDocuments: mock(() => Promise.resolve([])),
+  ping: mock(() => Promise.resolve(true)),
   findEntitiesByVector: mock(() => Promise.resolve([
     { id: '1', label: 'Person', properties: { name: 'Alice', scopeId: 'tenant-1' } },
   ])),
@@ -110,6 +111,19 @@ const mockNeo4jService = {
       properties: { contextIds: [contextId] },
     });
   }),
+  // Additional DatabaseProvider methods
+  findEntityById: mock(() => Promise.resolve(null)),
+  updateEntity: mock(() => Promise.resolve({ id: '1', label: 'Entity', properties: {} })),
+  deleteEntity: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listEntities: mock(() => Promise.resolve([])),
+  findRelationshipById: mock(() => Promise.resolve(null)),
+  updateRelationship: mock(() => Promise.resolve({ id: '1', type: 'REL', from: '1', to: '2', properties: {} })),
+  deleteRelationship: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listRelationships: mock(() => Promise.resolve([])),
+  findDocumentById: mock(() => Promise.resolve(null)),
+  updateDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  deleteDocument: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listDocuments: mock(() => Promise.resolve([])),
 } as any;
 
 // Mock providers
@@ -145,9 +159,9 @@ describe('Akasha - Progress Callbacks', () => {
   beforeEach(() => {
     lastFoundDocument = null;
     lastFoundEntity = null;
-    mockNeo4jService.createEntities.mockClear();
-    mockNeo4jService.createRelationships.mockClear();
-    mockNeo4jService.createDocument.mockClear();
+    mockDatabaseProvider.createEntities.mockClear();
+    mockDatabaseProvider.createRelationships.mockClear();
+    mockDatabaseProvider.createDocument.mockClear();
     mockEmbeddingProvider.generateEmbedding.mockClear();
     mockLLMProvider.generateResponse.mockClear();
   });
@@ -160,13 +174,32 @@ describe('Akasha - Progress Callbacks', () => {
 
   it('should call progress callback for each item', async () => {
     const akasha = new Akasha({
-      neo4j: {
+      database: {
+        type: 'neo4j',
+        config: {
         uri: 'bolt://localhost:7687',
         user: 'neo4j',
         password: 'password',
+        },
+      },
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -208,13 +241,32 @@ describe('Akasha - Progress Callbacks', () => {
 
   it('should include failed count in progress when errors occur', async () => {
     const akasha = new Akasha({
-      neo4j: {
+      database: {
+        type: 'neo4j',
+        config: {
         uri: 'bolt://localhost:7687',
         user: 'neo4j',
         password: 'password',
+        },
+      },
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -254,13 +306,32 @@ describe('Akasha - Progress Callbacks', () => {
 
   it('should truncate long text in progress callback', async () => {
     const akasha = new Akasha({
-      neo4j: {
+      database: {
+        type: 'neo4j',
+        config: {
         uri: 'bolt://localhost:7687',
         user: 'neo4j',
         password: 'password',
+        },
+      },
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -284,13 +355,32 @@ describe('Akasha - Progress Callbacks', () => {
 
   it('should calculate estimated time remaining', async () => {
     const akasha = new Akasha({
-      neo4j: {
+      database: {
+        type: 'neo4j',
+        config: {
         uri: 'bolt://localhost:7687',
         user: 'neo4j',
         password: 'password',
+        },
+      },
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -317,13 +407,32 @@ describe('Akasha - Progress Callbacks', () => {
 
   it('should work without progress callback', async () => {
     const akasha = new Akasha({
-      neo4j: {
+      database: {
+        type: 'neo4j',
+        config: {
         uri: 'bolt://localhost:7687',
         user: 'neo4j',
         password: 'password',
+        },
+      },
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -338,13 +447,32 @@ describe('Akasha - Progress Callbacks', () => {
 
   it('should handle async progress callback', async () => {
     const akasha = new Akasha({
-      neo4j: {
+      database: {
+        type: 'neo4j',
+        config: {
         uri: 'bolt://localhost:7687',
         user: 'neo4j',
         password: 'password',
+        },
+      },
+      providers: {
+        embedding: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'text-embedding-3-small',
+          },
+        },
+        llm: {
+          type: 'openai',
+          config: {
+            apiKey: 'test-key',
+            model: 'gpt-4',
+          },
+        },
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 

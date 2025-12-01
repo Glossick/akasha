@@ -113,15 +113,39 @@ export interface EventsConfig {
 }
 
 /**
+ * Database type identifier
+ */
+export type DatabaseType = 'neo4j' | 'ladybug';
+
+/**
+ * Neo4j database configuration
+ */
+export interface Neo4jConfig {
+  uri: string;
+  user: string;
+  password: string;
+  database?: string;
+}
+
+/**
+ * LadybugDB database configuration
+ */
+export interface LadybugConfig {
+  databasePath: string; // LadybugDB uses file path, not connection string
+}
+
+/**
+ * Database configuration (union type for type safety)
+ */
+export type DatabaseConfig = 
+  | { type: 'neo4j'; config: Neo4jConfig }
+  | { type: 'ladybug'; config: LadybugConfig };
+
+/**
  * Akasha configuration
  */
 export interface AkashaConfig {
-  neo4j: {
-    uri: string;
-    user: string;
-    password: string;
-    database?: string;
-  };
+  database: DatabaseConfig;
   
   /**
    * Provider configuration (required)
@@ -327,7 +351,7 @@ export interface BatchLearnResult {
  */
 export interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
-  neo4j: {
+  database: {
     connected: boolean;
     error?: string;
   };

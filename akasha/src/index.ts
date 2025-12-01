@@ -3,13 +3,32 @@
  * 
  * @example
  * ```typescript
- * import { akasha } from 'akasha';
+ * import { akasha } from '@glossick/akasha';
  * 
  * const kg = akasha({
- *   neo4j: {
- *     uri: 'bolt://localhost:7687',
- *     user: 'neo4j',
- *     password: 'password',
+ *   database: {
+ *     type: 'neo4j',
+ *     config: {
+ *       uri: 'bolt://localhost:7687',
+ *       user: 'neo4j',
+ *       password: 'password',
+ *     },
+ *   },
+ *   providers: {
+ *     embedding: {
+ *       type: 'openai',
+ *       config: {
+ *         apiKey: process.env.OPENAI_API_KEY!,
+ *         model: 'text-embedding-3-small',
+ *       },
+ *     },
+ *     llm: {
+ *       type: 'openai',
+ *       config: {
+ *         apiKey: process.env.OPENAI_API_KEY!,
+ *         model: 'gpt-4',
+ *       },
+ *     },
  *   },
  *   scope: {
  *     id: 'tenant-1',
@@ -18,7 +37,7 @@
  *   },
  * });
  * 
- * await kg.init();
+ * await kg.initialize();
  * const result = await kg.ask('What is the relationship between X and Y?');
  * ```
  */
@@ -29,6 +48,11 @@ export type {
   Scope,
   Context,
   AkashaConfig,
+  DatabaseType,
+  DatabaseConfig,
+  Neo4jConfig,
+  KuzuConfig,
+  LadybugConfig,
   QueryOptions,
   QueryStrategy,
   GraphRAGQuery,
@@ -61,6 +85,14 @@ export type {
   EmbeddingProvider,
   LLMProvider,
 } from './services/providers/interfaces';
+
+// Export database provider interface and implementations
+export type {
+  DatabaseProvider,
+} from './services/providers/database/interfaces';
+
+export { Neo4jProvider } from './services/providers/database/neo4j-provider';
+export { createDatabaseProvider } from './services/providers/database/factory';
 
 // Export provider implementations for advanced usage
 export { OpenAIEmbeddingProvider } from './services/providers/embedding/openai-embedding.provider';

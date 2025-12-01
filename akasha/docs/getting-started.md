@@ -7,9 +7,11 @@ This guide will help you set up Akasha and create your first knowledge graph fro
 - **Bun runtime** (v1.1.26 or later) - **Required**
   - ⚠️ **Note**: Akasha currently requires Bun as the runtime. Node.js compatibility is in progress.
   - You can install the package via npm, but you must run your code with Bun.
-- **Neo4j database** (v5.0 or later, with vector index support)
+- **Database** (choose one):
+  - **Neo4j** (v5.0 or later, with vector index support) - Server-based, production-ready
+  - **LadybugDB** (via `lbug` package) - Embedded, no server required
 - **API Keys** (at least one of):
-  - **OpenAI API key** - Required for embeddings, can also be used for LLM
+  - **OpenAI API key** - Required for embeddings (⚠️ **Only OpenAI is supported for embeddings**), can also be used for LLM
   - **Anthropic API key** - Optional, for Claude LLM models
   - **DeepSeek API key** - Optional, for cost-effective DeepSeek LLM models
 
@@ -35,21 +37,84 @@ Then import it in your code:
 import { akasha } from '@glossick/akasha';
 ```
 
+## Choosing a Database
+
+Akasha supports two database backends:
+
+### Neo4j
+- **Best for:** Production environments, multi-user applications, existing Neo4j infrastructure
+- **Setup:** Requires Neo4j server running (local or cloud)
+- **Installation:** Download from [neo4j.com](https://neo4j.com/download/)
+- **Connection:** Uses Bolt protocol (`bolt://localhost:7687`)
+
+### LadybugDB
+- **Best for:** Development, single-user applications, embedded deployments, edge computing
+- **Setup:** No server required - embedded database
+- **Installation:** `bun add lbug` or `npm install lbug`
+- **Connection:** Uses file path (e.g., `'./my-database'`)
+
+**Example with LadybugDB:**
+```typescript
+const kg = akasha({
+  database: {
+    type: 'ladybug',
+    config: {
+      databasePath: './my-kg-database',
+    },
+  },
+  providers: { /* ... */ },
+});
+```
+
 ## Configuration
 
-Akasha requires three essential components: a Neo4j connection, provider configuration, and optionally a scope for multi-tenancy.
+Akasha requires three essential components: a database connection, provider configuration, and optionally a scope for multi-tenancy.
 
-### Basic Configuration
+### Basic Configuration (Neo4j)
 
 ```typescript
 import { akasha } from '@glossick/akasha';
 
 const kg = akasha({
-  neo4j: {
-    uri: process.env.NEO4J_URI || 'bolt://localhost:7687',
-    user: process.env.NEO4J_USER || 'neo4j',
-    password: process.env.NEO4J_PASSWORD || 'password',
-    database: process.env.NEO4J_DATABASE || 'neo4j',
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: process.env.NEO4J_URI || 'bolt://localhost:7687',
+      user: process.env.NEO4J_USER || 'neo4j',
+      password: process.env.NEO4J_PASSWORD || 'password',
+      database: process.env.NEO4J_DATABASE || 'neo4j',
+    },
+  },
+  providers: {
+    embedding: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'text-embedding-3-small',
+      },
+    },
+    llm: {
+      type: 'openai',
+      config: {
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'gpt-4',
+      },
+    },
+  },
+});
+```
+
+### Basic Configuration (LadybugDB)
+
+```typescript
+import { akasha } from '@glossick/akasha';
+
+const kg = akasha({
+  database: {
+    type: 'ladybug',
+    config: {
+      databasePath: process.env.LADYBUG_DATABASE_PATH || './my-kg-database',
+    },
   },
   providers: {
     embedding: {
@@ -76,7 +141,7 @@ Scopes provide data isolation. Each scope represents a distinct knowledge space:
 
 ```typescript
 const kg = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   providers: { /* ... */ },
   scope: {
     id: 'tenant-1',
@@ -121,7 +186,7 @@ Before using Akasha, you must initialize the connection:
 await kg.initialize();
 ```
 
-This connects to Neo4j and ensures the vector index exists for semantic search.
+This connects to the database and ensures the vector index exists for semantic search.
 
 ## Your First Knowledge Graph
 

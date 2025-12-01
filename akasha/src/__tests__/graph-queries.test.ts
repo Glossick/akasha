@@ -12,11 +12,10 @@ const mockSession = {
 } as any;
 
 // Mock dependencies
-const mockNeo4jService = {
+const mockDatabaseProvider = {
   connect: mock(() => Promise.resolve()),
   disconnect: mock(() => Promise.resolve()),
   ensureVectorIndex: mock(() => Promise.resolve()),
-  getSession: mock(() => mockSession),
   listEntities: mock(() => Promise.resolve([
     { id: '1', label: 'Person', properties: { name: 'Alice', scopeId: 'tenant-1' } },
     { id: '2', label: 'Person', properties: { name: 'Bob', scopeId: 'tenant-1' } },
@@ -27,6 +26,28 @@ const mockNeo4jService = {
   listDocuments: mock(() => Promise.resolve([
     { id: 'doc1', label: 'Document', properties: { text: 'Test document', scopeId: 'tenant-1' } },
   ])),
+  getEntitiesFromDocuments: mock(() => Promise.resolve([])),
+  ping: mock(() => Promise.resolve(true)),
+  findEntitiesByVector: mock(() => Promise.resolve([])),
+  findDocumentsByVector: mock(() => Promise.resolve([])),
+  retrieveSubgraph: mock(() => Promise.resolve({ entities: [], relationships: [] })),
+  createEntities: mock(() => Promise.resolve([])),
+  createRelationships: mock(() => Promise.resolve([])),
+  createDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  linkEntityToDocument: mock(() => Promise.resolve({ id: 'rel1', type: 'CONTAINS_ENTITY', from: 'doc1', to: '1', properties: {} })),
+  findEntityByName: mock(() => Promise.resolve(null)),
+  findDocumentByText: mock(() => Promise.resolve(null)),
+  updateDocumentContextIds: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  updateEntityContextIds: mock(() => Promise.resolve({ id: '1', label: 'Entity', properties: {} })),
+  findEntityById: mock(() => Promise.resolve(null)),
+  updateEntity: mock(() => Promise.resolve({ id: '1', label: 'Entity', properties: {} })),
+  deleteEntity: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  findRelationshipById: mock(() => Promise.resolve(null)),
+  updateRelationship: mock(() => Promise.resolve({ id: '1', type: 'REL', from: '1', to: '2', properties: {} })),
+  deleteRelationship: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  findDocumentById: mock(() => Promise.resolve(null)),
+  updateDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  deleteDocument: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
 } as any;
 
 // Mock providers
@@ -59,9 +80,9 @@ const mockLLMProvider = {
 
 describe('Akasha - Direct Graph Queries', () => {
   beforeEach(() => {
-    mockNeo4jService.listEntities.mockClear();
-    mockNeo4jService.listRelationships.mockClear();
-    mockNeo4jService.listDocuments.mockClear();
+    mockDatabaseProvider.listEntities.mockClear();
+    mockDatabaseProvider.listRelationships.mockClear();
+    mockDatabaseProvider.listDocuments.mockClear();
   });
 
   const scope: Scope = {
@@ -73,20 +94,39 @@ describe('Akasha - Direct Graph Queries', () => {
   describe('listEntities', () => {
     it('should list all entities with default options', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
       const result = await akasha.listEntities();
 
       expect(result.length).toBe(2);
-      expect(mockNeo4jService.listEntities).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listEntities).toHaveBeenCalledWith(
         undefined, // label
         100, // limit (default)
         0, // offset (default)
@@ -96,13 +136,32 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should filter entities by label', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
@@ -112,7 +171,7 @@ describe('Akasha - Direct Graph Queries', () => {
 
       await akasha.listEntities(options);
 
-      expect(mockNeo4jService.listEntities).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listEntities).toHaveBeenCalledWith(
         'Person',
         100,
         0,
@@ -122,13 +181,32 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should support pagination with limit and offset', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
@@ -139,7 +217,7 @@ describe('Akasha - Direct Graph Queries', () => {
 
       await akasha.listEntities(options);
 
-      expect(mockNeo4jService.listEntities).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listEntities).toHaveBeenCalledWith(
         undefined,
         50,
         10,
@@ -149,19 +227,38 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should respect scope filtering', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
       await akasha.listEntities();
 
-      expect(mockNeo4jService.listEntities).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listEntities).toHaveBeenCalledWith(
         undefined,
         100,
         0,
@@ -171,19 +268,38 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should work without scope', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         // No scope
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
       await akasha.listEntities();
 
-      expect(mockNeo4jService.listEntities).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listEntities).toHaveBeenCalledWith(
         undefined,
         100,
         0,
@@ -191,47 +307,170 @@ describe('Akasha - Direct Graph Queries', () => {
       );
     });
 
-    it('should handle includeEmbeddings option', async () => {
+    it('should scrub embeddings by default (includeEmbeddings: false or undefined)', async () => {
+      // Setup: Mock database provider to return entities WITH embeddings
+      mockDatabaseProvider.listEntities.mockResolvedValueOnce([
+        { 
+          id: '1', 
+          label: 'Person', 
+          properties: { 
+            name: 'Alice', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4] // Has embedding
+          } 
+        },
+        { 
+          id: '2', 
+          label: 'Person', 
+          properties: { 
+            name: 'Bob', 
+            scopeId: 'tenant-1',
+            embedding: [0.5, 0.6, 0.7, 0.8] // Has embedding
+          } 
+        },
+      ]);
+
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
-      const options: ListEntitiesOptions = {
-        includeEmbeddings: true,
-      };
+      // Test 1: Default (includeEmbeddings: undefined)
+      const result1 = await akasha.listEntities();
+      expect(result1[0].properties.embedding).toBeUndefined();
+      expect(result1[1].properties.embedding).toBeUndefined();
+      expect(result1[0].properties.name).toBe('Alice'); // Other properties preserved
 
-      const result = await akasha.listEntities(options);
+      // Reset mock
+      mockDatabaseProvider.listEntities.mockResolvedValueOnce([
+        { 
+          id: '1', 
+          label: 'Person', 
+          properties: { 
+            name: 'Alice', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4]
+          } 
+        },
+      ]);
 
-      // Note: includeEmbeddings is handled at the service layer
-      expect(mockNeo4jService.listEntities).toHaveBeenCalled();
-      expect(result.length).toBeGreaterThan(0);
+      // Test 2: Explicitly false
+      const result2 = await akasha.listEntities({ includeEmbeddings: false });
+      expect(result2[0].properties.embedding).toBeUndefined();
+    });
+
+    it('should include embeddings when includeEmbeddings: true', async () => {
+      mockDatabaseProvider.listEntities.mockResolvedValueOnce([
+        { 
+          id: '1', 
+          label: 'Person', 
+          properties: { 
+            name: 'Alice', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4]
+          } 
+        },
+      ]);
+
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listEntities({ includeEmbeddings: true });
+      
+      expect(result[0].properties.embedding).toBeDefined();
+      expect(result[0].properties.embedding).toEqual([0.1, 0.2, 0.3, 0.4]);
+      expect(result[0].properties.name).toBe('Alice'); // Other properties preserved
     });
   });
 
   describe('listRelationships', () => {
     it('should list all relationships with default options', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
       const result = await akasha.listRelationships();
 
       expect(result.length).toBe(1);
-      expect(mockNeo4jService.listRelationships).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listRelationships).toHaveBeenCalledWith(
         undefined, // type
         undefined, // fromId
         undefined, // toId
@@ -243,13 +482,32 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should filter relationships by type', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
@@ -259,7 +517,7 @@ describe('Akasha - Direct Graph Queries', () => {
 
       await akasha.listRelationships(options);
 
-      expect(mockNeo4jService.listRelationships).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listRelationships).toHaveBeenCalledWith(
         'WORKS_FOR',
         undefined,
         undefined,
@@ -271,13 +529,32 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should filter relationships by fromId and toId', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
@@ -288,7 +565,7 @@ describe('Akasha - Direct Graph Queries', () => {
 
       await akasha.listRelationships(options);
 
-      expect(mockNeo4jService.listRelationships).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listRelationships).toHaveBeenCalledWith(
         undefined,
         'entity-1',
         'entity-2',
@@ -300,13 +577,32 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should support pagination', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
@@ -317,7 +613,7 @@ describe('Akasha - Direct Graph Queries', () => {
 
       await akasha.listRelationships(options);
 
-      expect(mockNeo4jService.listRelationships).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listRelationships).toHaveBeenCalledWith(
         undefined,
         undefined,
         undefined,
@@ -329,19 +625,38 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should respect scope filtering', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
       await akasha.listRelationships();
 
-      expect(mockNeo4jService.listRelationships).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listRelationships).toHaveBeenCalledWith(
         undefined,
         undefined,
         undefined,
@@ -350,25 +665,144 @@ describe('Akasha - Direct Graph Queries', () => {
         'tenant-1'
       );
     });
+
+    it('should scrub embeddings from relationships by default', async () => {
+      mockDatabaseProvider.listRelationships.mockResolvedValueOnce([
+        { 
+          id: 'r1', 
+          type: 'WORKS_FOR', 
+          from: '1', 
+          to: '2', 
+          properties: { 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3] // Has embedding
+          } 
+        },
+      ]);
+
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listRelationships();
+      
+      expect(result[0].properties.embedding).toBeUndefined();
+      expect(result[0].properties.scopeId).toBe('tenant-1'); // Other properties preserved
+    });
+
+    it('should include embeddings in relationships when includeEmbeddings: true', async () => {
+      mockDatabaseProvider.listRelationships.mockResolvedValueOnce([
+        { 
+          id: 'r1', 
+          type: 'WORKS_FOR', 
+          from: '1', 
+          to: '2', 
+          properties: { 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3]
+          } 
+        },
+      ]);
+
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listRelationships({ includeEmbeddings: true });
+      
+      expect(result[0].properties.embedding).toBeDefined();
+      expect(result[0].properties.embedding).toEqual([0.1, 0.2, 0.3]);
+    });
   });
 
   describe('listDocuments', () => {
     it('should list all documents with default options', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
       const result = await akasha.listDocuments();
 
       expect(result.length).toBe(1);
-      expect(mockNeo4jService.listDocuments).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listDocuments).toHaveBeenCalledWith(
         100, // limit
         0, // offset
         'tenant-1' // scopeId
@@ -377,13 +811,32 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should support pagination', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
@@ -394,28 +847,145 @@ describe('Akasha - Direct Graph Queries', () => {
 
       await akasha.listDocuments(options);
 
-      expect(mockNeo4jService.listDocuments).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listDocuments).toHaveBeenCalledWith(
         20,
         5,
         'tenant-1'
       );
     });
 
-    it('should respect scope filtering', async () => {
+    it('should scrub embeddings from documents by default', async () => {
+      mockDatabaseProvider.listDocuments.mockResolvedValueOnce([
+        { 
+          id: 'doc1', 
+          label: 'Document', 
+          properties: { 
+            text: 'Test document', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4] // Has embedding
+          } 
+        },
+      ]);
+
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listDocuments();
+      
+      expect(result[0].properties.embedding).toBeUndefined();
+      expect(result[0].properties.text).toBe('Test document'); // Other properties preserved
+    });
+
+    it('should include embeddings in documents when includeEmbeddings: true', async () => {
+      mockDatabaseProvider.listDocuments.mockResolvedValueOnce([
+        { 
+          id: 'doc1', 
+          label: 'Document', 
+          properties: { 
+            text: 'Test document', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4]
+          } 
+        },
+      ]);
+
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listDocuments({ includeEmbeddings: true });
+      
+      expect(result[0].properties.embedding).toBeDefined();
+      expect(result[0].properties.embedding).toEqual([0.1, 0.2, 0.3, 0.4]);
+    });
+
+    it('should respect scope filtering', async () => {
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
       await akasha.listDocuments();
 
-      expect(mockNeo4jService.listDocuments).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listDocuments).toHaveBeenCalledWith(
         100,
         0,
         'tenant-1'
@@ -424,19 +994,38 @@ describe('Akasha - Direct Graph Queries', () => {
 
     it('should work without scope', async () => {
       const akasha = new Akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: 'bolt://localhost:7687',
           user: 'neo4j',
           password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
         },
         // No scope
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
 
       await akasha.listDocuments();
 
-      expect(mockNeo4jService.listDocuments).toHaveBeenCalledWith(
+      expect(mockDatabaseProvider.listDocuments).toHaveBeenCalledWith(
         100,
         0,
         undefined

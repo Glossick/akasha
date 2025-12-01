@@ -8,6 +8,7 @@ Akasha is a minimal, developer-friendly GraphRAG library that transforms natural
 
 - [Getting Started](./getting-started.md) - Quick start guide
 - [Core Concepts](./core-concepts.md) - Understanding Akasha's architecture
+- [Database Providers](./database-providers.md) - Choosing and configuring database backends
 - [Providers](./providers.md) - Configuring embedding and LLM providers
 - [Design Principles](./philosophy.md) - Design principles and architecture decisions
 - [API Reference](./api-reference.md) - Complete API documentation
@@ -36,10 +37,13 @@ Akasha is a GraphRAG (Graph Retrieval-Augmented Generation) library that extract
 import { akasha } from '@glossick/akasha';
 
 const kg = akasha({
-  neo4j: {
-    uri: 'bolt://localhost:7687',
-    user: 'neo4j',
-    password: 'password',
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
+    },
   },
   scope: {
     id: 'my-project',

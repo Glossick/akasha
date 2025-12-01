@@ -10,14 +10,19 @@ Creates and returns an Akasha instance.
 
 **Parameters:**
 
-- `config.neo4j` - Neo4j connection configuration
-  - `uri: string` - Connection URI (e.g., `'bolt://localhost:7687'`)
-  - `user: string` - Username
-  - `password: string` - Password
-  - `database?: string` - Database name (default: `'neo4j'`)
+- `config.database` - Database configuration (required)
+  - `type: 'neo4j' | 'ladybug'` - Database type
+  - `config` - Database-specific configuration
+    - **Neo4j:**
+      - `uri: string` - Connection URI (e.g., `'bolt://localhost:7687'`)
+      - `user: string` - Username
+      - `password: string` - Password
+      - `database?: string` - Database name (default: `'neo4j'`)
+    - **LadybugDB:**
+      - `databasePath: string` - Path to database directory
 - `config.providers` - Provider configuration (required)
   - `embedding` - Embedding provider configuration
-    - `type: 'openai'` - Provider type
+    - `type: 'openai'` - ⚠️ **Only OpenAI is supported for embeddings**
     - `config.apiKey: string` - API key
     - `config.model: string` - Model name (e.g., `'text-embedding-3-small'`, `'text-embedding-3-large'`)
     - `config.dimensions?: number` - Optional dimension override for OpenAI models (e.g., 512, 1536, 3072)
@@ -37,14 +42,17 @@ Creates and returns an Akasha instance.
 
 **Returns:** `Akasha` instance
 
-**Example (OpenAI Only):**
+**Example (Neo4j with OpenAI):**
 
 ```typescript
 const kg = akasha({
-  neo4j: {
-    uri: 'bolt://localhost:7687',
-    user: 'neo4j',
-    password: 'password',
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
+    },
   },
   providers: {
     embedding: {
@@ -74,7 +82,14 @@ const kg = akasha({
 
 ```typescript
 const kg = akasha({
-  neo4j: { /* ... */ },
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
+    },
+  },
   providers: {
     embedding: {
       type: 'openai',
@@ -98,7 +113,14 @@ const kg = akasha({
 
 ```typescript
 const kg = akasha({
-  neo4j: { /* ... */ },
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
+    },
+  },
   providers: {
     embedding: {
       type: 'openai',
@@ -149,10 +171,13 @@ Validates an Akasha configuration without creating an instance. Useful for valid
 **Example:**
 ```typescript
 const config = {
-  neo4j: {
-    uri: 'bolt://localhost:7687',
-    user: 'neo4j',
-    password: 'password',
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
+    },
   },
   providers: {
     embedding: {
@@ -186,9 +211,11 @@ if (!validation.valid) {
 ```
 
 **Validation Rules:**
-- **Neo4j** (required): `uri`, `user`, `password` must be non-empty strings
+- **Database** (required): 
+  - For Neo4j: `uri`, `user`, `password` must be non-empty strings
+  - For Kuzu/LadybugDB: `databasePath` must be non-empty string
 - **Providers** (required):
-  - **embedding** (required): Must have `type` and `config` with `apiKey` and `model`
+  - **embedding** (required): Must have `type: 'openai'` and `config` with `apiKey` and `model` (⚠️ **Only OpenAI is supported for embeddings**)
   - **llm** (required): Must have `type` and `config` with `apiKey` and `model`
   - Valid types: `'openai'` (embedding), `'openai' | 'anthropic' | 'deepseek'` (LLM)
 - **Scope** (optional): If provided, `id`, `type`, and `name` must be non-empty strings
@@ -220,7 +247,7 @@ if (!validation.valid) {
 
 ### `initialize(): Promise<void>`
 
-Connects to Neo4j and ensures the vector index exists. Must be called before using `ask()` or `learn()`.
+Connects to the database and ensures the vector index exists. Must be called before using `ask()` or `learn()`.
 
 **Example:**
 ```typescript
@@ -231,7 +258,7 @@ await kg.initialize();
 
 ### `cleanup(): Promise<void>`
 
-Closes the Neo4j connection. Call this when done with the instance.
+Closes the database connection. Call this when done with the instance.
 
 **Example:**
 ```typescript
@@ -493,13 +520,13 @@ If any item fails, it's recorded in the `errors` array and processing continues.
 
 ### `healthCheck(): Promise<HealthStatus>`
 
-Check the health status of Neo4j and OpenAI services.
+Check the health status of the database and provider services.
 
 **Returns:** `HealthStatus`
 ```typescript
 {
   status: 'healthy' | 'degraded' | 'unhealthy';
-  neo4j: {
+  database: {
     connected: boolean;
     error?: string;
   };
@@ -513,7 +540,7 @@ Check the health status of Neo4j and OpenAI services.
 ```
 
 **Status Values:**
-- `'healthy'`: Both Neo4j and embedding provider are available
+- `'healthy'`: Both database and embedding provider are available
 - `'degraded'`: One service is unavailable
 - `'unhealthy'`: Both services are unavailable
 
@@ -524,11 +551,11 @@ const health = await kg.healthCheck();
 if (health.status === 'healthy') {
   console.log('All services operational');
 } else if (health.status === 'degraded') {
-  if (!health.neo4j.connected) {
-    console.error('Neo4j unavailable:', health.neo4j.error);
+  if (!health.database.connected) {
+    console.error('Database unavailable:', health.database.error);
   }
-  if (!health.openai.available) {
-    console.error('OpenAI unavailable:', health.openai.error);
+  if (!health.embedding.available) {
+    console.error('Embedding provider unavailable:', health.embedding.error);
   }
 } else {
   console.error('All services unavailable');
@@ -801,14 +828,15 @@ Lists entities with optional filtering by label and pagination.
 - `options.label?: string` - Filter by entity label (e.g., `'Person'`, `'Company'`)
 - `options.limit?: number` - Maximum number of entities to return (default: `100`)
 - `options.offset?: number` - Number of entities to skip (default: `0`)
-- `options.includeEmbeddings?: boolean` - Include embeddings in response (default: `false`)
+- `options.includeEmbeddings?: boolean` - Include embeddings in response (default: `false`). When `false` or `undefined`, embeddings are automatically scrubbed from results. Set to `true` to include embeddings.
 
 **Returns:** `Entity[]` - Array of entities
 
 **Example:**
 ```typescript
-// List all entities
+// List all entities (embeddings scrubbed by default)
 const allEntities = await kg.listEntities();
+console.log(allEntities[0].properties.embedding); // undefined
 
 // Filter by label
 const people = await kg.listEntities({ label: 'Person' });
@@ -816,6 +844,10 @@ const people = await kg.listEntities({ label: 'Person' });
 // Pagination
 const page1 = await kg.listEntities({ limit: 50, offset: 0 });
 const page2 = await kg.listEntities({ limit: 50, offset: 50 });
+
+// Include embeddings explicitly
+const entitiesWithEmbeddings = await kg.listEntities({ includeEmbeddings: true });
+console.log(entitiesWithEmbeddings[0].properties.embedding); // [0.1, 0.2, 0.3, ...]
 ```
 
 **Note:** This operation respects scope boundaries. You can only list entities within your configured scope.
@@ -832,14 +864,15 @@ Lists relationships with optional filtering by type, source, or target entity, a
 - `options.toId?: string` - Filter by target entity ID
 - `options.limit?: number` - Maximum number of relationships to return (default: `100`)
 - `options.offset?: number` - Number of relationships to skip (default: `0`)
-- `options.includeEmbeddings?: boolean` - Include embeddings in response (default: `false`)
+- `options.includeEmbeddings?: boolean` - Include embeddings in response (default: `false`). When `false` or `undefined`, embeddings are automatically scrubbed from results. Set to `true` to include embeddings.
 
 **Returns:** `Relationship[]` - Array of relationships
 
 **Example:**
 ```typescript
-// List all relationships
+// List all relationships (embeddings scrubbed by default)
 const allRels = await kg.listRelationships();
+console.log(allRels[0].properties.embedding); // undefined
 
 // Filter by type
 const worksForRels = await kg.listRelationships({ type: 'WORKS_FOR' });
@@ -856,6 +889,10 @@ const specific = await kg.listRelationships({
   fromId: 'entity-123',
   limit: 10,
 });
+
+// Include embeddings explicitly
+const relsWithEmbeddings = await kg.listRelationships({ includeEmbeddings: true });
+console.log(relsWithEmbeddings[0].properties.embedding); // [0.1, 0.2, 0.3, ...]
 ```
 
 **Note:** This operation respects scope boundaries. You can only list relationships within your configured scope.
@@ -869,18 +906,23 @@ Lists documents with optional pagination.
 **Parameters:**
 - `options.limit?: number` - Maximum number of documents to return (default: `100`)
 - `options.offset?: number` - Number of documents to skip (default: `0`)
-- `options.includeEmbeddings?: boolean` - Include embeddings in response (default: `false`)
+- `options.includeEmbeddings?: boolean` - Include embeddings in response (default: `false`). When `false` or `undefined`, embeddings are automatically scrubbed from results. Set to `true` to include embeddings.
 
 **Returns:** `Document[]` - Array of documents
 
 **Example:**
 ```typescript
-// List all documents
+// List all documents (embeddings scrubbed by default)
 const allDocs = await kg.listDocuments();
+console.log(allDocs[0].properties.embedding); // undefined
 
 // Pagination
 const page1 = await kg.listDocuments({ limit: 20, offset: 0 });
 const page2 = await kg.listDocuments({ limit: 20, offset: 20 });
+
+// Include embeddings explicitly
+const docsWithEmbeddings = await kg.listDocuments({ includeEmbeddings: true });
+console.log(docsWithEmbeddings[0].properties.embedding); // [0.1, 0.2, 0.3, ...]
 ```
 
 **Note:** This operation respects scope boundaries. You can only list documents within your configured scope.

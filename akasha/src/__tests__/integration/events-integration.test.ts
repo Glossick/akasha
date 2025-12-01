@@ -2,22 +2,14 @@ import { describe, expect, it, beforeAll, afterAll, mock } from 'bun:test';
 import { Akasha } from '../../akasha';
 import { createTestConfig, createMockEmbeddingProvider, createMockLLMProvider } from '../test-helpers';
 import type { AkashaEvent } from '../../events/types';
-import { Neo4jService } from '../../services/neo4j.service';
+import type { DatabaseProvider } from '../../services/providers/database/interfaces';
 
-// Mock Neo4j service to avoid requiring real database
-const createMockNeo4jService = () => {
-  const mockSession = {
-    run: mock(() => Promise.resolve({
-      records: [],
-    })),
-    close: mock(() => Promise.resolve()),
-  } as any;
-
+// Mock DatabaseProvider to avoid requiring real database
+const createMockDatabaseProvider = (): DatabaseProvider => {
   return {
     connect: mock(() => Promise.resolve()),
     disconnect: mock(() => Promise.resolve()),
     ensureVectorIndex: mock(() => Promise.resolve()),
-    getSession: mock(() => mockSession),
     findEntitiesByVector: mock(() => Promise.resolve([])),
     findDocumentsByVector: mock(() => Promise.resolve([])),
     retrieveSubgraph: mock(() => Promise.resolve({
@@ -118,10 +110,10 @@ describe('Events Integration', () => {
   });
 
   beforeAll(async () => {
-    const mockNeo4j = createMockNeo4jService();
+    const mockDatabase = createMockDatabaseProvider();
     kg = new Akasha(
       config,
-      mockNeo4j as unknown as Neo4jService,
+      mockDatabase,
       createMockEmbeddingProvider(),
       createMockLLMProvider()
     );

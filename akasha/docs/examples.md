@@ -10,10 +10,13 @@ Practical examples demonstrating common Akasha patterns and use cases.
 import { akasha } from '@glossick/akasha';
 
 const kg = akasha({
-  neo4j: {
-    uri: 'bolt://localhost:7687',
-    user: 'neo4j',
-    password: 'password',
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
+    },
   },
   providers: {
     embedding: {
@@ -56,7 +59,7 @@ await kg.cleanup();
 ```typescript
 function createTenantKG(tenantId: string) {
   return akasha({
-    neo4j: { /* ... */ },
+    database: { /* ... */ },
     scope: {
       id: `tenant-${tenantId}`,
       type: 'tenant',
@@ -123,7 +126,7 @@ const ecommerceOntology = {
 };
 
 const kg = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   extractionPrompt: ecommerceOntology,
 });
 
@@ -138,7 +141,7 @@ await kg.learn('John Doe purchased an iPhone 15. Order #12345 contains iPhone 15
 import { processOntologyTemplate } from '../examples/process-ontology';
 
 const kg = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   extractionPrompt: processOntologyTemplate,
 });
 
@@ -354,6 +357,55 @@ const combinedResult = await kg.ask('What did we learn from interviews?', {
   maxDepth: 3,
   includeEmbeddings: false,
 });
+```
+
+## Integration Patterns
+
+### Database-Agnostic Factory
+
+Create a factory function that works with any database:
+
+```typescript
+// Database-agnostic factory function
+function createKG(databaseType: 'neo4j' | 'ladybug') {
+  return akasha({
+    database: databaseType === 'neo4j'
+      ? {
+          type: 'neo4j',
+          config: {
+            uri: process.env.NEO4J_URI!,
+            user: process.env.NEO4J_USER!,
+            password: process.env.NEO4J_PASSWORD!,
+          },
+        }
+      : {
+          type: 'ladybug',
+          config: {
+            databasePath: process.env.LADYBUG_DATABASE_PATH || './database',
+          },
+        },
+    providers: {
+      embedding: {
+        type: 'openai',
+        config: {
+          apiKey: process.env.OPENAI_API_KEY!,
+          model: 'text-embedding-3-small',
+        },
+      },
+      llm: {
+        type: 'openai',
+        config: {
+          apiKey: process.env.OPENAI_API_KEY!,
+          model: 'gpt-4',
+        },
+      },
+    },
+  });
+}
+
+// Usage
+const kg = createKG(process.env.DATABASE_TYPE as 'neo4j' | 'ladybug' || 'neo4j');
+await kg.initialize();
 ```
 
 ## Integration Patterns
@@ -650,10 +702,13 @@ await kg.initialize();
 
 ```typescript
 const kg = akasha({
-  neo4j: {
-    uri: 'bolt://localhost:7687',
-    user: 'neo4j',
-    password: 'password',
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
+    },
   },
 });
 
@@ -689,10 +744,13 @@ function createAkashaWithValidation(config: AkashaConfig): Akasha {
 // Usage
 try {
   const kg = createAkashaWithValidation({
-    neo4j: {
-      uri: '', // Invalid: empty URI
-      user: 'neo4j',
-      password: 'password',
+    database: {
+      type: 'neo4j',
+      config: {
+        uri: '', // Invalid: empty URI
+        user: 'neo4j',
+        password: 'password',
+      },
     },
   });
 } catch (error) {
@@ -870,7 +928,7 @@ console.log('Entity still exists?', foundAfter !== null); // false
 ```typescript
 // Create entity in scope1
 const kg1 = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   scope: { id: 'scope1', type: 'project', name: 'Project 1' },
 });
 await kg1.initialize();
@@ -1009,7 +1067,7 @@ console.log('Still exists?', foundAfterDelete !== null); // false
 ```typescript
 // Create entity in scope1
 const kg1 = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   scope: { id: 'scope1', type: 'project', name: 'Project 1' },
 });
 await kg1.initialize();

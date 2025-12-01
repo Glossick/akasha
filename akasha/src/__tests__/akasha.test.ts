@@ -15,12 +15,11 @@ const mockSession = {
 let lastFoundDocument: any = null;
 let lastFoundEntity: any = null;
 
-// Mock dependencies
-const mockNeo4jService = {
+// Mock dependencies - DatabaseProvider interface
+const mockDatabaseProvider = {
   connect: mock(() => Promise.resolve()),
   disconnect: mock(() => Promise.resolve()),
   ensureVectorIndex: mock(() => Promise.resolve()),
-  getSession: mock(() => mockSession),
   findEntitiesByVector: mock(() => Promise.resolve([
     { id: '1', label: 'Person', properties: { name: 'Alice', scopeId: 'tenant-1', _similarity: 0.9 } },
   ])),
@@ -113,6 +112,21 @@ const mockNeo4jService = {
       properties: { contextIds: [contextId] },
     });
   }),
+  // Additional DatabaseProvider methods
+  findEntityById: mock(() => Promise.resolve(null)),
+  updateEntity: mock(() => Promise.resolve({ id: '1', label: 'Person', properties: {} })),
+  deleteEntity: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listEntities: mock(() => Promise.resolve([])),
+  findRelationshipById: mock(() => Promise.resolve(null)),
+  updateRelationship: mock(() => Promise.resolve({ id: '1', type: 'REL', from: '1', to: '2', properties: {} })),
+  deleteRelationship: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listRelationships: mock(() => Promise.resolve([])),
+  findDocumentById: mock(() => Promise.resolve(null)),
+  updateDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: { text: '', scopeId: '' } })),
+  deleteDocument: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listDocuments: mock(() => Promise.resolve([])),
+  getEntitiesFromDocuments: mock(() => Promise.resolve([])),
+  ping: mock(() => Promise.resolve(true)),
 } as any;
 
 // Mock providers
@@ -161,11 +175,11 @@ describe('Akasha', () => {
           password: 'password',
         },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
-      expect(mockNeo4jService.connect).toHaveBeenCalled();
-      expect(mockNeo4jService.ensureVectorIndex).toHaveBeenCalled();
+      expect(mockDatabaseProvider.connect).toHaveBeenCalled();
+      expect(mockDatabaseProvider.ensureVectorIndex).toHaveBeenCalled();
     });
 
     it('should initialize without scope (scope-agnostic mode)', async () => {
@@ -175,10 +189,10 @@ describe('Akasha', () => {
           user: 'neo4j',
           password: 'password',
         },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.initialize();
-      expect(mockNeo4jService.connect).toHaveBeenCalled();
+      expect(mockDatabaseProvider.connect).toHaveBeenCalled();
     });
 
     it('should cleanup connection on cleanup', async () => {
@@ -188,10 +202,10 @@ describe('Akasha', () => {
           user: 'neo4j',
           password: 'password',
         },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
       await akasha.cleanup();
-      expect(mockNeo4jService.disconnect).toHaveBeenCalled();
+      expect(mockDatabaseProvider.disconnect).toHaveBeenCalled();
     });
   });
 
@@ -206,7 +220,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       expect(akasha.getScope()).toEqual(scope);
     });
@@ -214,7 +228,7 @@ describe('Akasha', () => {
     it('should return undefined when no scope configured', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       expect(akasha.getScope()).toBeUndefined();
     });
@@ -222,8 +236,8 @@ describe('Akasha', () => {
 
   describe('Query with Scope Filtering', () => {
     beforeEach(() => {
-      mockNeo4jService.findEntitiesByVector.mockClear();
-      mockNeo4jService.retrieveSubgraph.mockClear();
+      mockDatabaseProvider.findEntitiesByVector.mockClear();
+      mockDatabaseProvider.retrieveSubgraph.mockClear();
       mockEmbeddingProvider.generateEmbedding.mockClear();
       mockLLMProvider.generateResponse.mockClear();
       mockEmbeddingProvider.generateEmbedding.mockClear();
@@ -240,40 +254,40 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.ask('What is the relationship between Alice and Bob?');
 
       // Verify scopeId is passed to Neo4j queries
-      expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
-      const findCall = mockNeo4jService.findEntitiesByVector.mock.calls[0];
+      expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
+      const findCall = mockDatabaseProvider.findEntitiesByVector.mock.calls[0];
       expect(findCall[3]).toBe('tenant-1'); // scopeId parameter
 
-      expect(mockNeo4jService.retrieveSubgraph).toHaveBeenCalled();
-      const subgraphCall = mockNeo4jService.retrieveSubgraph.mock.calls[0];
+      expect(mockDatabaseProvider.retrieveSubgraph).toHaveBeenCalled();
+      const subgraphCall = mockDatabaseProvider.retrieveSubgraph.mock.calls[0];
       expect(subgraphCall[5]).toBe('tenant-1'); // scopeId parameter
     });
 
     it('should not filter queries when no scope is configured', async () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.ask('What is the relationship between Alice and Bob?');
 
-      expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
-      const findCall = mockNeo4jService.findEntitiesByVector.mock.calls[0];
+      expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
+      const findCall = mockDatabaseProvider.findEntitiesByVector.mock.calls[0];
       expect(findCall[3]).toBeUndefined(); // No scopeId
     });
 
     it('should return answer with context', async () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -291,8 +305,8 @@ describe('Akasha', () => {
     beforeEach(() => {
       mockEmbeddingProvider.generateEmbeddings.mockClear();
       mockLLMProvider.generateResponse.mockClear();
-      mockNeo4jService.createEntities.mockClear();
-      mockNeo4jService.createRelationships.mockClear();
+      mockDatabaseProvider.createEntities.mockClear();
+      mockDatabaseProvider.createRelationships.mockClear();
     });
 
     it('should add scopeId to all created entities', async () => {
@@ -305,15 +319,15 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       const text = 'Alice works for Acme Corp.';
       await akasha.learn(text);
 
-      expect(mockNeo4jService.createEntities).toHaveBeenCalled();
-      const createCall = mockNeo4jService.createEntities.mock.calls[0];
+      expect(mockDatabaseProvider.createEntities).toHaveBeenCalled();
+      const createCall = mockDatabaseProvider.createEntities.mock.calls[0];
       const entities = createCall[0];
       
       // All entities should have scopeId
@@ -332,15 +346,15 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       const text = 'Alice works for Acme Corp.';
       await akasha.learn(text);
 
-      expect(mockNeo4jService.createRelationships).toHaveBeenCalled();
-      const createCall = mockNeo4jService.createRelationships.mock.calls[0];
+      expect(mockDatabaseProvider.createRelationships).toHaveBeenCalled();
+      const createCall = mockDatabaseProvider.createRelationships.mock.calls[0];
       const relationships = createCall[0];
       
       // All relationships should have scopeId in properties
@@ -359,7 +373,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -378,25 +392,25 @@ describe('Akasha', () => {
       const tenant1 = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Tenant 1' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       const tenant2 = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-2', type: 'tenant', name: 'Tenant 2' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await tenant1.initialize();
       await tenant2.initialize();
 
       // Query tenant 1
-      mockNeo4jService.findEntitiesByVector.mockClear();
+      mockDatabaseProvider.findEntitiesByVector.mockClear();
       await tenant1.ask('Find Alice');
-      expect(mockNeo4jService.findEntitiesByVector.mock.calls[0][3]).toBe('tenant-1');
+      expect(mockDatabaseProvider.findEntitiesByVector.mock.calls[0][3]).toBe('tenant-1');
 
       // Query tenant 2
-      mockNeo4jService.findEntitiesByVector.mockClear();
+      mockDatabaseProvider.findEntitiesByVector.mockClear();
       await tenant2.ask('Find Alice');
-      expect(mockNeo4jService.findEntitiesByVector.mock.calls[0][3]).toBe('tenant-2');
+      expect(mockDatabaseProvider.findEntitiesByVector.mock.calls[0][3]).toBe('tenant-2');
     });
   });
 
@@ -405,7 +419,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -420,17 +434,17 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
-      mockNeo4jService.findEntitiesByVector.mockClear();
+      mockDatabaseProvider.findEntitiesByVector.mockClear();
       await akasha.ask('Find connections', {
         contexts: ['context-1', 'context-2'],
       });
 
       // Should filter by both scopeId and contextIds
-      expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
+      expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
     });
 
     describe('Context Filtering - learn() method', () => {
@@ -439,23 +453,23 @@ describe('Akasha', () => {
         lastFoundDocument = null;
         lastFoundEntity = null;
         // Clear all mocks
-        mockNeo4jService.findDocumentByText.mockClear();
-        mockNeo4jService.createDocument.mockClear();
-        mockNeo4jService.findEntityByName.mockClear();
-        mockNeo4jService.createEntities.mockClear();
-        mockNeo4jService.linkEntityToDocument.mockClear();
+        mockDatabaseProvider.findDocumentByText.mockClear();
+        mockDatabaseProvider.createDocument.mockClear();
+        mockDatabaseProvider.findEntityByName.mockClear();
+        mockDatabaseProvider.createEntities.mockClear();
+        mockDatabaseProvider.linkEntityToDocument.mockClear();
       });
 
       it('should add contextId to new document contextIds array', async () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
-        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(null); // Document doesn't exist
-        mockNeo4jService.createDocument.mockResolvedValueOnce({
+        mockDatabaseProvider.findDocumentByText.mockResolvedValueOnce(null); // Document doesn't exist
+        mockDatabaseProvider.createDocument.mockResolvedValueOnce({
           id: 'doc1',
           label: 'Document',
           properties: {
@@ -471,8 +485,8 @@ describe('Akasha', () => {
         });
 
         // Verify document was created with contextIds array and system metadata
-        expect(mockNeo4jService.createDocument).toHaveBeenCalled();
-        const createCall = mockNeo4jService.createDocument.mock.calls[0];
+        expect(mockDatabaseProvider.createDocument).toHaveBeenCalled();
+        const createCall = mockDatabaseProvider.createDocument.mock.calls[0];
         expect(createCall[0].properties.contextIds).toEqual(['context-1']);
         expect(createCall[0].properties).toHaveProperty('_recordedAt');
         expect(createCall[0].properties).toHaveProperty('_validFrom');
@@ -491,12 +505,12 @@ describe('Akasha', () => {
         };
 
         lastFoundDocument = existingDocument; // Set tracked state
-        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(existingDocument);
+        mockDatabaseProvider.findDocumentByText.mockResolvedValueOnce(existingDocument);
 
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -521,9 +535,9 @@ describe('Akasha', () => {
       });
 
       it('should add contextId to new entity contextIds array', async () => {
-        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(null);
-        mockNeo4jService.findEntityByName.mockResolvedValueOnce(null); // Entity doesn't exist
-        mockNeo4jService.createDocument.mockResolvedValueOnce({
+        mockDatabaseProvider.findDocumentByText.mockResolvedValueOnce(null);
+        mockDatabaseProvider.findEntityByName.mockResolvedValueOnce(null); // Entity doesn't exist
+        mockDatabaseProvider.createDocument.mockResolvedValueOnce({
           id: 'doc1',
           label: 'Document',
           properties: {
@@ -532,7 +546,7 @@ describe('Akasha', () => {
             contextIds: ['context-1'],
           },
         });
-        mockNeo4jService.createEntities.mockResolvedValueOnce([
+        mockDatabaseProvider.createEntities.mockResolvedValueOnce([
           {
             id: '1',
             label: 'Person',
@@ -547,7 +561,7 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -556,8 +570,8 @@ describe('Akasha', () => {
         });
 
         // Verify entity was created with contextIds and system metadata
-        expect(mockNeo4jService.createEntities).toHaveBeenCalled();
-        const createCall = mockNeo4jService.createEntities.mock.calls[0];
+        expect(mockDatabaseProvider.createEntities).toHaveBeenCalled();
+        const createCall = mockDatabaseProvider.createEntities.mock.calls[0];
         expect(createCall[0][0].properties.contextIds).toEqual(['context-1']);
         expect(createCall[0][0].properties).toHaveProperty('_recordedAt');
         expect(createCall[0][0].properties).toHaveProperty('_validFrom');
@@ -587,14 +601,14 @@ describe('Akasha', () => {
 
         lastFoundDocument = null;
         lastFoundEntity = existingEntity; // Set tracked state
-        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(null);
-        mockNeo4jService.findEntityByName.mockResolvedValueOnce(existingEntity);
-        mockNeo4jService.createDocument.mockResolvedValueOnce(existingDocument);
+        mockDatabaseProvider.findDocumentByText.mockResolvedValueOnce(null);
+        mockDatabaseProvider.findEntityByName.mockResolvedValueOnce(existingEntity);
+        mockDatabaseProvider.createDocument.mockResolvedValueOnce(existingDocument);
 
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -619,12 +633,12 @@ describe('Akasha', () => {
         };
 
         lastFoundDocument = existingDocument; // Set tracked state
-        mockNeo4jService.findDocumentByText.mockResolvedValueOnce(existingDocument);
+        mockDatabaseProvider.findDocumentByText.mockResolvedValueOnce(existingDocument);
 
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
@@ -643,19 +657,19 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
-        mockNeo4jService.findDocumentsByVector.mockClear();
+        mockDatabaseProvider.findDocumentsByVector.mockClear();
         await akasha.ask('Find documents', {
           contexts: ['context-1', 'context-2'],
           strategy: 'documents',
         });
 
         // Should pass contexts to findDocumentsByVector
-        expect(mockNeo4jService.findDocumentsByVector).toHaveBeenCalled();
-        const call = mockNeo4jService.findDocumentsByVector.mock.calls[0];
+        expect(mockDatabaseProvider.findDocumentsByVector).toHaveBeenCalled();
+        const call = mockDatabaseProvider.findDocumentsByVector.mock.calls[0];
         expect(call[4]).toEqual(['context-1', 'context-2']); // 5th parameter should be contexts
       });
 
@@ -663,19 +677,19 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
-        mockNeo4jService.findEntitiesByVector.mockClear();
+        mockDatabaseProvider.findEntitiesByVector.mockClear();
         await akasha.ask('Find entities', {
           contexts: ['context-1', 'context-2'],
           strategy: 'entities',
         });
 
         // Should pass contexts to findEntitiesByVector
-        expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
-        const call = mockNeo4jService.findEntitiesByVector.mock.calls[0];
+        expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
+        const call = mockDatabaseProvider.findEntitiesByVector.mock.calls[0];
         expect(call[4]).toEqual(['context-1', 'context-2']); // 5th parameter should be contexts
       });
 
@@ -683,18 +697,18 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
-        mockNeo4jService.findEntitiesByVector.mockClear();
+        mockDatabaseProvider.findEntitiesByVector.mockClear();
         await akasha.ask('Find entities', {
           // No contexts specified
         });
 
         // Should pass undefined for contexts
-        expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
-        const call = mockNeo4jService.findEntitiesByVector.mock.calls[0];
+        expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
+        const call = mockDatabaseProvider.findEntitiesByVector.mock.calls[0];
         expect(call[4]).toBeUndefined();
       });
 
@@ -702,22 +716,22 @@ describe('Akasha', () => {
         const akasha = new Akasha({
           neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
           scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
         await akasha.initialize();
 
-        mockNeo4jService.findDocumentsByVector.mockClear();
-        mockNeo4jService.findEntitiesByVector.mockClear();
+        mockDatabaseProvider.findDocumentsByVector.mockClear();
+        mockDatabaseProvider.findEntitiesByVector.mockClear();
         await akasha.ask('Find everything', {
           contexts: ['context-1'],
           strategy: 'both',
         });
 
         // Both should be called with contexts
-        expect(mockNeo4jService.findDocumentsByVector).toHaveBeenCalled();
-        expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
-        expect(mockNeo4jService.findDocumentsByVector.mock.calls[0][4]).toEqual(['context-1']);
-        expect(mockNeo4jService.findEntitiesByVector.mock.calls[0][4]).toEqual(['context-1']);
+        expect(mockDatabaseProvider.findDocumentsByVector).toHaveBeenCalled();
+        expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
+        expect(mockDatabaseProvider.findDocumentsByVector.mock.calls[0][4]).toEqual(['context-1']);
+        expect(mockDatabaseProvider.findEntitiesByVector.mock.calls[0][4]).toEqual(['context-1']);
       });
     });
   });
@@ -728,13 +742,13 @@ describe('Akasha', () => {
       lastFoundDocument = null;
       lastFoundEntity = null;
       // Clear all mocks
-      mockNeo4jService.findDocumentByText.mockClear();
-      mockNeo4jService.createDocument.mockClear();
-      mockNeo4jService.findEntityByName.mockClear();
-      mockNeo4jService.createEntities.mockClear();
-      mockNeo4jService.linkEntityToDocument.mockClear();
-      mockNeo4jService.updateDocumentContextIds.mockClear();
-      mockNeo4jService.updateEntityContextIds.mockClear();
+      mockDatabaseProvider.findDocumentByText.mockClear();
+      mockDatabaseProvider.createDocument.mockClear();
+      mockDatabaseProvider.findEntityByName.mockClear();
+      mockDatabaseProvider.createEntities.mockClear();
+      mockDatabaseProvider.linkEntityToDocument.mockClear();
+      mockDatabaseProvider.updateDocumentContextIds.mockClear();
+      mockDatabaseProvider.updateEntityContextIds.mockClear();
       mockEmbeddingProvider.generateEmbedding.mockClear();
       mockLLMProvider.generateResponse.mockClear();
     });
@@ -749,7 +763,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -757,11 +771,11 @@ describe('Akasha', () => {
       const result = await akasha.learn(text);
 
       // Should check if document exists
-      expect(mockNeo4jService.findDocumentByText).toHaveBeenCalledWith(text, 'tenant-1');
+      expect(mockDatabaseProvider.findDocumentByText).toHaveBeenCalledWith(text, 'tenant-1');
       
       // Should create document node with system metadata
-      expect(mockNeo4jService.createDocument).toHaveBeenCalled();
-      const createDocCall = mockNeo4jService.createDocument.mock.calls[0];
+      expect(mockDatabaseProvider.createDocument).toHaveBeenCalled();
+      const createDocCall = mockDatabaseProvider.createDocument.mock.calls[0];
       expect(createDocCall[0].properties.text).toBe(text);
       expect(createDocCall[0].properties.scopeId).toBe('tenant-1');
       expect(createDocCall[0].properties).toHaveProperty('_recordedAt');
@@ -787,14 +801,14 @@ describe('Akasha', () => {
       };
 
       // First call: document doesn't exist
-      mockNeo4jService.findDocumentByText.mockResolvedValueOnce(null);
+      mockDatabaseProvider.findDocumentByText.mockResolvedValueOnce(null);
       // Second call: document exists
-      mockNeo4jService.findDocumentByText.mockResolvedValueOnce(existingDocument);
+      mockDatabaseProvider.findDocumentByText.mockResolvedValueOnce(existingDocument);
 
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -803,12 +817,12 @@ describe('Akasha', () => {
       // First learn: creates document
       const result1 = await akasha.learn(text);
       expect(result1.created.document).toBe(1);
-      expect(mockNeo4jService.createDocument).toHaveBeenCalledTimes(1);
+      expect(mockDatabaseProvider.createDocument).toHaveBeenCalledTimes(1);
 
       // Second learn: uses existing document
       const result2 = await akasha.learn(text);
       expect(result2.created.document).toBe(0); // Not created, deduplicated
-      expect(mockNeo4jService.createDocument).toHaveBeenCalledTimes(1); // Still only called once
+      expect(mockDatabaseProvider.createDocument).toHaveBeenCalledTimes(1); // Still only called once
       expect(result2.document.id).toBe('doc-existing');
     });
 
@@ -822,7 +836,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -830,8 +844,8 @@ describe('Akasha', () => {
       await akasha.learn(text);
 
       // Should link each entity to the document
-      expect(mockNeo4jService.linkEntityToDocument).toHaveBeenCalled();
-      const linkCalls = mockNeo4jService.linkEntityToDocument.mock.calls;
+      expect(mockDatabaseProvider.linkEntityToDocument).toHaveBeenCalled();
+      const linkCalls = mockDatabaseProvider.linkEntityToDocument.mock.calls;
       expect(linkCalls.length).toBeGreaterThan(0);
       
       // Each call should link an entity to the document
@@ -850,23 +864,23 @@ describe('Akasha', () => {
       };
 
       // First document
-      mockNeo4jService.findDocumentByText.mockResolvedValueOnce(null);
-      mockNeo4jService.createDocument.mockResolvedValueOnce({
+      mockDatabaseProvider.findDocumentByText.mockResolvedValueOnce(null);
+      mockDatabaseProvider.createDocument.mockResolvedValueOnce({
         id: 'doc1',
         label: 'Document',
         properties: { text: 'Alice works for Acme Corp.', scopeId: 'tenant-1' },
       });
 
       // Second document (different text, but same entity "Alice")
-      mockNeo4jService.findDocumentByText.mockResolvedValueOnce(null);
-      mockNeo4jService.createDocument.mockResolvedValueOnce({
+      mockDatabaseProvider.findDocumentByText.mockResolvedValueOnce(null);
+      mockDatabaseProvider.createDocument.mockResolvedValueOnce({
         id: 'doc2',
         label: 'Document',
         properties: { text: 'Alice knows Bob.', scopeId: 'tenant-1' },
       });
 
       // Mock entity lookup: "Alice" entity already exists
-      mockNeo4jService.findEntityByName = mock((name: string, scopeId: string) => {
+      mockDatabaseProvider.findEntityByName = mock((name: string, scopeId: string) => {
         if (name === 'Alice') {
           return Promise.resolve({
             id: 'entity-alice',
@@ -880,7 +894,7 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -891,7 +905,7 @@ describe('Akasha', () => {
       const result2 = await akasha.learn('Alice knows Bob.');
 
       // Should link existing Alice entity to second document
-      const linkCalls = mockNeo4jService.linkEntityToDocument.mock.calls;
+      const linkCalls = mockDatabaseProvider.linkEntityToDocument.mock.calls;
       const aliceLinks = linkCalls.filter((call: any[]) => call[1] === 'entity-alice');
       expect(aliceLinks.length).toBeGreaterThanOrEqual(1); // Alice linked to at least one document
     });
@@ -899,9 +913,9 @@ describe('Akasha', () => {
 
   describe('Query Strategy', () => {
     beforeEach(() => {
-      mockNeo4jService.findEntitiesByVector.mockClear();
-      mockNeo4jService.findDocumentsByVector.mockClear();
-      mockNeo4jService.retrieveSubgraph.mockClear();
+      mockDatabaseProvider.findEntitiesByVector.mockClear();
+      mockDatabaseProvider.findDocumentsByVector.mockClear();
+      mockDatabaseProvider.retrieveSubgraph.mockClear();
       mockEmbeddingProvider.generateEmbedding.mockClear();
       mockLLMProvider.generateResponse.mockClear();
     });
@@ -910,52 +924,52 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.ask('What is Alice?');
 
       // Should search both documents and entities
-      expect(mockNeo4jService.findDocumentsByVector).toHaveBeenCalled();
-      expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
+      expect(mockDatabaseProvider.findDocumentsByVector).toHaveBeenCalled();
+      expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
     });
 
     it('should use "documents" strategy when specified', async () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.ask('What is Alice?', { strategy: 'documents' });
 
       // Should only search documents
-      expect(mockNeo4jService.findDocumentsByVector).toHaveBeenCalled();
-      expect(mockNeo4jService.findEntitiesByVector).not.toHaveBeenCalled();
+      expect(mockDatabaseProvider.findDocumentsByVector).toHaveBeenCalled();
+      expect(mockDatabaseProvider.findEntitiesByVector).not.toHaveBeenCalled();
     });
 
     it('should use "entities" strategy when specified', async () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.ask('What is Alice?', { strategy: 'entities' });
 
       // Should only search entities
-      expect(mockNeo4jService.findDocumentsByVector).not.toHaveBeenCalled();
-      expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
+      expect(mockDatabaseProvider.findDocumentsByVector).not.toHaveBeenCalled();
+      expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
     });
 
     it('should include documents in response when strategy includes documents', async () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope: { id: 'tenant-1', type: 'tenant', name: 'Test Tenant' },
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
@@ -969,11 +983,11 @@ describe('Akasha', () => {
 
   describe('System Metadata - Temporal Tracking', () => {
     beforeEach(() => {
-      mockNeo4jService.findDocumentByText.mockResolvedValue(null);
-      mockNeo4jService.findEntityByName.mockResolvedValue(null);
-      mockNeo4jService.createDocument.mockClear();
-      mockNeo4jService.createEntities.mockClear();
-      mockNeo4jService.createRelationships.mockClear();
+      mockDatabaseProvider.findDocumentByText.mockResolvedValue(null);
+      mockDatabaseProvider.findEntityByName.mockResolvedValue(null);
+      mockDatabaseProvider.createDocument.mockClear();
+      mockDatabaseProvider.createEntities.mockClear();
+      mockDatabaseProvider.createRelationships.mockClear();
     });
 
     it('should add _recordedAt to entities when learning', async () => {
@@ -986,15 +1000,15 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.learn('Alice works for Acme Corp.');
 
       // Check that createEntities was called with _recordedAt
-      expect(mockNeo4jService.createEntities).toHaveBeenCalled();
-      const createCall = mockNeo4jService.createEntities.mock.calls[0];
+      expect(mockDatabaseProvider.createEntities).toHaveBeenCalled();
+      const createCall = mockDatabaseProvider.createEntities.mock.calls[0];
       const entity = createCall[0][0];
       
       expect(entity.properties).toHaveProperty('_recordedAt');
@@ -1012,15 +1026,15 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.learn('Alice works for Acme Corp.');
 
       // Check that createRelationships was called with _recordedAt
-      expect(mockNeo4jService.createRelationships).toHaveBeenCalled();
-      const createCall = mockNeo4jService.createRelationships.mock.calls[0];
+      expect(mockDatabaseProvider.createRelationships).toHaveBeenCalled();
+      const createCall = mockDatabaseProvider.createRelationships.mock.calls[0];
       const relationships = createCall[0];
       
       // Relationships array might be empty if LLM doesn't extract relationships
@@ -1045,15 +1059,15 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.learn('Alice works for Acme Corp.');
 
       // Check that createDocument was called with _recordedAt
-      expect(mockNeo4jService.createDocument).toHaveBeenCalled();
-      const createCall = mockNeo4jService.createDocument.mock.calls[0];
+      expect(mockDatabaseProvider.createDocument).toHaveBeenCalled();
+      const createCall = mockDatabaseProvider.createDocument.mock.calls[0];
       const document = createCall[0];
       
       expect(document.properties).toHaveProperty('_recordedAt');
@@ -1070,15 +1084,15 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       const validFrom = new Date('2024-01-10T08:00:00Z');
       await akasha.learn('Alice works for Acme Corp.', { validFrom });
 
-      expect(mockNeo4jService.createEntities).toHaveBeenCalled();
-      const createCall = mockNeo4jService.createEntities.mock.calls[0];
+      expect(mockDatabaseProvider.createEntities).toHaveBeenCalled();
+      const createCall = mockDatabaseProvider.createEntities.mock.calls[0];
       const entity = createCall[0][0];
       
       expect(entity.properties).toHaveProperty('_validFrom');
@@ -1095,15 +1109,15 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       const validTo = new Date('2024-12-31T23:59:59Z');
       await akasha.learn('Alice works for Acme Corp.', { validTo });
 
-      expect(mockNeo4jService.createEntities).toHaveBeenCalled();
-      const createCall = mockNeo4jService.createEntities.mock.calls[0];
+      expect(mockDatabaseProvider.createEntities).toHaveBeenCalled();
+      const createCall = mockDatabaseProvider.createEntities.mock.calls[0];
       const entity = createCall[0][0];
       
       expect(entity.properties).toHaveProperty('_validTo');
@@ -1120,14 +1134,14 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.learn('Alice works for Acme Corp.');
 
-      expect(mockNeo4jService.createEntities).toHaveBeenCalled();
-      const createCall = mockNeo4jService.createEntities.mock.calls[0];
+      expect(mockDatabaseProvider.createEntities).toHaveBeenCalled();
+      const createCall = mockDatabaseProvider.createEntities.mock.calls[0];
       const entity = createCall[0][0];
       
       expect(entity.properties).toHaveProperty('_validFrom');
@@ -1144,14 +1158,14 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.learn('Alice works for Acme Corp.');
 
-      expect(mockNeo4jService.createEntities).toHaveBeenCalled();
-      const createCall = mockNeo4jService.createEntities.mock.calls[0];
+      expect(mockDatabaseProvider.createEntities).toHaveBeenCalled();
+      const createCall = mockDatabaseProvider.createEntities.mock.calls[0];
       const entity = createCall[0][0];
       
       expect(entity.properties).not.toHaveProperty('_validTo');
@@ -1160,9 +1174,9 @@ describe('Akasha', () => {
 
   describe('Temporal Query Filtering', () => {
     beforeEach(() => {
-      mockNeo4jService.findEntitiesByVector.mockClear();
-      mockNeo4jService.findDocumentsByVector.mockClear();
-      mockNeo4jService.retrieveSubgraph.mockClear();
+      mockDatabaseProvider.findEntitiesByVector.mockClear();
+      mockDatabaseProvider.findDocumentsByVector.mockClear();
+      mockDatabaseProvider.retrieveSubgraph.mockClear();
     });
 
     it('should pass validAt to findEntitiesByVector when provided', async () => {
@@ -1175,15 +1189,15 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       const validAt = new Date('2024-06-01T12:00:00Z');
       await akasha.ask('Who works for companies?', { validAt });
 
-      expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
-      const call = mockNeo4jService.findEntitiesByVector.mock.calls[0];
+      expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
+      const call = mockDatabaseProvider.findEntitiesByVector.mock.calls[0];
       // Check that validAt is passed (5th parameter after queryEmbedding, limit, similarityThreshold, scopeId)
       // Actually, we need to check the implementation to see parameter order
       expect(call).toBeDefined();
@@ -1199,15 +1213,15 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       const validAt = new Date('2024-06-01T12:00:00Z');
       await akasha.ask('Who works for companies?', { validAt, strategy: 'both' });
 
-      expect(mockNeo4jService.findDocumentsByVector).toHaveBeenCalled();
-      const call = mockNeo4jService.findDocumentsByVector.mock.calls[0];
+      expect(mockDatabaseProvider.findDocumentsByVector).toHaveBeenCalled();
+      const call = mockDatabaseProvider.findDocumentsByVector.mock.calls[0];
       expect(call).toBeDefined();
     });
 
@@ -1221,13 +1235,13 @@ describe('Akasha', () => {
       const akasha = new Akasha({
         neo4j: { uri: 'bolt://localhost:7687', user: 'neo4j', password: 'password' },
         scope,
-      }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
       await akasha.initialize();
 
       await akasha.ask('Who works for companies?');
 
-      expect(mockNeo4jService.findEntitiesByVector).toHaveBeenCalled();
+      expect(mockDatabaseProvider.findEntitiesByVector).toHaveBeenCalled();
       // Should work normally without temporal filtering
     });
   });

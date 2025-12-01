@@ -15,10 +15,13 @@ import { akasha } from '@glossick/akasha';
 
 // Mix and match providers - OpenAI embeddings with Anthropic LLM
 const kg = akasha({
-  neo4j: {
-    uri: 'bolt://localhost:7687',
-    user: 'neo4j',
-    password: 'password',
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
+    },
   },
   providers: {
     embedding: {
@@ -129,7 +132,7 @@ const customOntology = {
 };
 
 const kg = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   extractionPrompt: customOntology,
 });
 
@@ -143,7 +146,7 @@ await kg.learn('John Doe purchased an iPhone 15.');
 // Each tenant gets their own knowledge space
 function createTenantKG(tenantId: string) {
   return akasha({
-    neo4j: { /* ... */ },
+    database: { /* ... */ },
     providers: {
       embedding: {
         type: 'openai',
@@ -189,9 +192,9 @@ await kg.learnBatch(documents, {
 ## Requirements
 
 - **Bun runtime** (v1.1.26+) - Required
-- **Neo4j** (v5.0+) - With vector index support
+- **Database**: Neo4j (v5.0+) or LadybugDB (via `lbug` package)
 - **Provider API Keys**:
-  - **Embeddings**: OpenAI (required)
+  - **Embeddings**: OpenAI (required) - ⚠️ Only OpenAI is supported for embeddings
   - **LLM**: OpenAI, Anthropic, or DeepSeek (choose one)
 
 ## Documentation

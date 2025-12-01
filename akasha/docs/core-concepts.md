@@ -31,7 +31,7 @@ When you call `learn()`, Akasha performs several steps:
 
 6. **Embedding Generation**: Text representations of entities and the document are converted to vector embeddings. These embeddings enable semantic search—finding entities and documents by meaning, not just exact text matches.
 
-7. **Graph Storage**: Documents, entities, and relationships are stored in Neo4j with their embeddings. Documents are linked to entities via `CONTAINS_ENTITY` relationships. The graph structure is preserved, and all data is tagged with a scopeId for isolation.
+7. **Graph Storage**: Documents, entities, and relationships are stored in the graph database (Neo4j or LadybugDB) with their embeddings. Documents are linked to entities via `CONTAINS_ENTITY` relationships. The graph structure is preserved, and all data is tagged with a scopeId for isolation.
 
 8. **Context Tracking**: The `contextId` is stored in the document's and entities' `contextIds` arrays, allowing them to belong to multiple contexts simultaneously.
 
@@ -124,14 +124,14 @@ This enables scenarios like:
 
 ## Connection Management
 
-Akasha uses a single Neo4j driver instance with connection pooling. The driver is shared across all operations, and scope filtering happens at the query level, not at the connection level.
+Akasha uses a single database connection with connection pooling (for server-based databases like Neo4j) or a single embedded connection (for embedded databases like LadybugDB). The connection is shared across all operations, and scope filtering happens at the query level, not at the connection level.
 
 This design choice prioritizes:
 - **Efficiency**: Single connection pool, no per-scope overhead
 - **Simplicity**: No complex connection management
 - **Flexibility**: Easy to add new scopes without infrastructure changes
 
-The trade-off is that all scopes share the same database connection. For stronger isolation, you could use separate Akasha instances with different Neo4j databases.
+The trade-off is that all scopes share the same database connection. For stronger isolation, you could use separate Akasha instances with different database connections or databases.
 
 ## Temporal Tracking
 
