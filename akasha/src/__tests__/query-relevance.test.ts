@@ -3,22 +3,40 @@ import { Akasha } from '../akasha';
 import { createTestConfig, createMockEmbeddingProvider, createMockLLMProvider } from './test-helpers';
 
 describe('Query Relevance Filtering', () => {
-  let mockNeo4jService: any;
+  let mockDatabaseProvider: any;
   let mockEmbeddingProvider: any;
   let mockLLMProvider: any;
 
   beforeEach(() => {
-    mockNeo4jService = {
+    mockDatabaseProvider = {
       connect: mock(() => Promise.resolve()),
       disconnect: mock(() => Promise.resolve()),
       ensureVectorIndex: mock(() => Promise.resolve()),
-      getSession: mock(() => ({
-        run: mock(() => Promise.resolve({ records: [] })),
-        close: mock(() => Promise.resolve()),
-      })),
       findDocumentsByVector: mock(() => Promise.resolve([])),
       findEntitiesByVector: mock(() => Promise.resolve([])),
       retrieveSubgraph: mock(() => Promise.resolve({ entities: [], relationships: [] })),
+      getEntitiesFromDocuments: mock(() => Promise.resolve([])),
+      ping: mock(() => Promise.resolve(true)),
+      createEntities: mock(() => Promise.resolve([])),
+      createRelationships: mock(() => Promise.resolve([])),
+      createDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+      linkEntityToDocument: mock(() => Promise.resolve({ id: 'rel1', type: 'CONTAINS_ENTITY', from: 'doc1', to: '1', properties: {} })),
+      findEntityByName: mock(() => Promise.resolve(null)),
+      findDocumentByText: mock(() => Promise.resolve(null)),
+      updateDocumentContextIds: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+      updateEntityContextIds: mock(() => Promise.resolve({ id: '1', label: 'Entity', properties: {} })),
+      findEntityById: mock(() => Promise.resolve(null)),
+      updateEntity: mock(() => Promise.resolve({ id: '1', label: 'Entity', properties: {} })),
+      deleteEntity: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+      listEntities: mock(() => Promise.resolve([])),
+      findRelationshipById: mock(() => Promise.resolve(null)),
+      updateRelationship: mock(() => Promise.resolve({ id: '1', type: 'REL', from: '1', to: '2', properties: {} })),
+      deleteRelationship: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+      listRelationships: mock(() => Promise.resolve([])),
+      findDocumentById: mock(() => Promise.resolve(null)),
+      updateDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+      deleteDocument: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+      listDocuments: mock(() => Promise.resolve([])),
     };
 
     mockEmbeddingProvider = createMockEmbeddingProvider();
@@ -65,7 +83,7 @@ describe('Query Relevance Filtering', () => {
       ];
 
       // Mock findDocumentsByVector to return all docs (simulating current buggy behavior)
-      mockNeo4jService.findDocumentsByVector = mock(() =>
+      mockDatabaseProvider.findDocumentsByVector = mock(() =>
         Promise.resolve([...irrelevantDocs, ...relevantDocs])
       );
 
@@ -77,7 +95,7 @@ describe('Query Relevance Filtering', () => {
             name: 'Test',
           },
         }),
-        mockNeo4jService,
+        mockDatabaseProvider,
         mockEmbeddingProvider,
         mockLLMProvider
       );
@@ -122,7 +140,7 @@ describe('Query Relevance Filtering', () => {
         },
       ];
 
-      mockNeo4jService.findDocumentsByVector = mock(() =>
+      mockDatabaseProvider.findDocumentsByVector = mock(() =>
         Promise.resolve(irrelevantDocs)
       );
 
@@ -134,7 +152,7 @@ describe('Query Relevance Filtering', () => {
             name: 'Test',
           },
         }),
-        mockNeo4jService,
+        mockDatabaseProvider,
         mockEmbeddingProvider,
         mockLLMProvider
       );
@@ -188,7 +206,7 @@ describe('Query Relevance Filtering', () => {
         },
       ];
 
-      mockNeo4jService.findEntitiesByVector = mock(() =>
+      mockDatabaseProvider.findEntitiesByVector = mock(() =>
         Promise.resolve([...irrelevantEntities, ...relevantEntities])
       );
 
@@ -200,7 +218,7 @@ describe('Query Relevance Filtering', () => {
             name: 'Test',
           },
         }),
-        mockNeo4jService,
+        mockDatabaseProvider,
         mockEmbeddingProvider,
         mockLLMProvider
       );
@@ -245,29 +263,16 @@ describe('Query Relevance Filtering', () => {
       };
 
       // Mock: findDocumentsByVector should only return relevant docs after filtering
-      mockNeo4jService.findDocumentsByVector = mock(() =>
+      mockDatabaseProvider.findDocumentsByVector = mock(() =>
         Promise.resolve([relevantDoc]) // Only relevant doc after filtering
       );
 
-      // Mock session for entity retrieval
-      const mockSession = {
-        run: mock(() =>
-          Promise.resolve({
-            records: [
-              {
-                get: (key: string) => {
-                  if (key === 'id') return { toString: () => '10' };
-                  if (key === 'labels') return ['Person'];
-                  if (key === 'properties') return { name: 'Alice', scopeId: 'test' };
-                },
-              },
-            ],
-          })
-        ),
-        close: mock(() => Promise.resolve()),
-      };
-
-      mockNeo4jService.getSession = mock(() => mockSession);
+      // Mock getEntitiesFromDocuments to return entities from relevant documents
+      mockDatabaseProvider.getEntitiesFromDocuments = mock(() =>
+        Promise.resolve([
+          { id: '10', label: 'Person', properties: { name: 'Alice', scopeId: 'test' } },
+        ])
+      );
 
       const kg = new Akasha(
         createTestConfig({
@@ -277,7 +282,7 @@ describe('Query Relevance Filtering', () => {
             name: 'Test',
           },
         }),
-        mockNeo4jService,
+        mockDatabaseProvider,
         mockEmbeddingProvider,
         mockLLMProvider
       );
@@ -289,12 +294,13 @@ describe('Query Relevance Filtering', () => {
       });
 
       // Should only retrieve entities from relevant documents
-      // The query should only include the relevant document ID
-      expect(mockSession.run).toHaveBeenCalled();
-      const queryCall = mockSession.run.mock.calls[0][0] as string;
-      // Should only query for entities from document ID 1 (relevant), not ID 2 (irrelevant)
-      expect(queryCall).toContain('id(d) IN');
-      // The document IDs in the query should only include relevant ones
+      // Verify getEntitiesFromDocuments was called with only relevant document IDs
+      expect(mockDatabaseProvider.getEntitiesFromDocuments).toHaveBeenCalled();
+      const call = mockDatabaseProvider.getEntitiesFromDocuments.mock.calls[0];
+      const documentIds = call[0] as string[];
+      // Should only query for entities from relevant document IDs (those above threshold)
+      expect(documentIds).not.toContain('2'); // Irrelevant document should be excluded
+      expect(documentIds.length).toBeGreaterThan(0); // Should have at least one relevant document
 
       await kg.cleanup();
     });
@@ -310,7 +316,7 @@ describe('Query Relevance Filtering', () => {
             name: 'Test',
           },
         }),
-        mockNeo4jService,
+        mockDatabaseProvider,
         mockEmbeddingProvider,
         mockLLMProvider
       );
@@ -321,8 +327,8 @@ describe('Query Relevance Filtering', () => {
       await kg.ask('Test query');
 
       // Verify findDocumentsByVector was called with threshold >= 0.7
-      expect(mockNeo4jService.findDocumentsByVector).toHaveBeenCalled();
-      const call = mockNeo4jService.findDocumentsByVector.mock.calls[0];
+      expect(mockDatabaseProvider.findDocumentsByVector).toHaveBeenCalled();
+      const call = mockDatabaseProvider.findDocumentsByVector.mock.calls[0];
       const threshold = call[2]; // Third parameter is similarityThreshold
       expect(threshold).toBeGreaterThanOrEqual(0.7);
 
@@ -338,7 +344,7 @@ describe('Query Relevance Filtering', () => {
             name: 'Test',
           },
         }),
-        mockNeo4jService,
+        mockDatabaseProvider,
         mockEmbeddingProvider,
         mockLLMProvider
       );
@@ -349,8 +355,8 @@ describe('Query Relevance Filtering', () => {
         similarityThreshold: 0.8, // Custom higher threshold
       });
 
-      expect(mockNeo4jService.findDocumentsByVector).toHaveBeenCalled();
-      const call = mockNeo4jService.findDocumentsByVector.mock.calls[0];
+      expect(mockDatabaseProvider.findDocumentsByVector).toHaveBeenCalled();
+      const call = mockDatabaseProvider.findDocumentsByVector.mock.calls[0];
       const threshold = call[2];
       expect(threshold).toBe(0.8);
 

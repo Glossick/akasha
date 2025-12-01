@@ -777,6 +777,61 @@ export class Neo4jService {
   }
 
   /**
+   * Get entities connected to documents via CONTAINS_ENTITY relationships
+   * Replaces direct getSession() usage in akasha.ts
+   */
+  async getEntitiesFromDocuments(documentIds: string[], scopeId?: string): Promise<Entity[]> {
+    const session = this.getSession();
+    try {
+      if (documentIds.length === 0) {
+        return [];
+      }
+
+      const docIdsList = documentIds.map(id => neo4j.int(id).toString()).join(', ');
+      let query = `
+        MATCH (d:Document)-[:CONTAINS_ENTITY]->(e:Entity)
+        WHERE id(d) IN [${docIdsList}]
+      `;
+      
+      if (scopeId) {
+        query += ` AND d.scopeId = $scopeId AND e.scopeId = $scopeId`;
+      }
+      
+      query += `
+        RETURN DISTINCT id(e) as id, labels(e) as labels, properties(e) as properties
+      `;
+
+      const result = await session.run(query, scopeId ? { scopeId } : {});
+      
+      return result.records.map((record: any) => ({
+        id: record.get('id').toString(),
+        label: record.get('labels')[0] || 'Unknown',
+        properties: record.get('properties') || {},
+      }));
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Simple connectivity check for health checks
+   * Replaces getSession() + session.run('RETURN 1') usage
+   */
+  async ping(): Promise<boolean> {
+    try {
+      const session = this.getSession();
+      try {
+        await session.run('RETURN 1');
+        return true;
+      } finally {
+        await session.close();
+      }
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
    * Update document contextIds array (add contextId if not present)
    */
   async updateDocumentContextIds(documentId: string, contextId: string): Promise<Document> {

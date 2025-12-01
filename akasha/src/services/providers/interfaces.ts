@@ -14,7 +14,7 @@
 export interface EmbeddingProvider {
   /**
    * The dimensionality of embeddings produced by this provider
-   * Must match the Neo4j vector index configuration
+   * Must match the database vector index configuration
    */
   readonly dimensions: number;
   

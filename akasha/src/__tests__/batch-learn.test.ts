@@ -15,11 +15,10 @@ const mockSession = {
 let lastFoundDocument: any = null;
 let lastFoundEntity: any = null;
 
-const mockNeo4jService = {
+const mockDatabaseProvider = {
   connect: mock(() => Promise.resolve()),
   disconnect: mock(() => Promise.resolve()),
   ensureVectorIndex: mock(() => Promise.resolve()),
-  getSession: mock(() => mockSession),
   findDocumentByText: mock(async (text: string, scopeId: string) => {
     return Promise.resolve(lastFoundDocument || null);
   }),
@@ -88,6 +87,24 @@ const mockNeo4jService = {
       properties: { contextIds: [contextId] },
     });
   }),
+  // Additional DatabaseProvider methods
+  findEntitiesByVector: mock(() => Promise.resolve([])),
+  findDocumentsByVector: mock(() => Promise.resolve([])),
+  retrieveSubgraph: mock(() => Promise.resolve({ entities: [], relationships: [] })),
+  findEntityById: mock(() => Promise.resolve(null)),
+  updateEntity: mock(() => Promise.resolve({ id: '1', label: 'Entity', properties: {} })),
+  deleteEntity: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listEntities: mock(() => Promise.resolve([])),
+  findRelationshipById: mock(() => Promise.resolve(null)),
+  updateRelationship: mock(() => Promise.resolve({ id: '1', type: 'REL', from: '1', to: '2', properties: {} })),
+  deleteRelationship: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listRelationships: mock(() => Promise.resolve([])),
+  findDocumentById: mock(() => Promise.resolve(null)),
+  updateDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  deleteDocument: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listDocuments: mock(() => Promise.resolve([])),
+  getEntitiesFromDocuments: mock(() => Promise.resolve([])),
+  ping: mock(() => Promise.resolve(true)),
 } as any;
 
 // Mock providers
@@ -124,11 +141,11 @@ describe('Akasha - Batch Learning', () => {
   beforeEach(() => {
     lastFoundDocument = null;
     lastFoundEntity = null;
-    mockNeo4jService.findDocumentByText.mockClear();
-    mockNeo4jService.createDocument.mockClear();
-    mockNeo4jService.findEntityByName.mockClear();
-    mockNeo4jService.createEntities.mockClear();
-    mockNeo4jService.createRelationships.mockClear();
+    mockDatabaseProvider.findDocumentByText.mockClear();
+    mockDatabaseProvider.createDocument.mockClear();
+    mockDatabaseProvider.findEntityByName.mockClear();
+    mockDatabaseProvider.createEntities.mockClear();
+    mockDatabaseProvider.createRelationships.mockClear();
     mockEmbeddingProvider.generateEmbedding.mockClear();
     mockLLMProvider.generateResponse.mockClear();
   });
@@ -147,7 +164,7 @@ describe('Akasha - Batch Learning', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
     await akasha.initialize();
 
@@ -168,7 +185,7 @@ describe('Akasha - Batch Learning', () => {
     expect(result.errors).toBeUndefined();
 
     // Verify all texts were processed
-    expect(mockNeo4jService.findDocumentByText).toHaveBeenCalledTimes(3);
+    expect(mockDatabaseProvider.findDocumentByText).toHaveBeenCalledTimes(3);
     expect(mockLLMProvider.generateResponse).toHaveBeenCalledTimes(3);
   });
 
@@ -180,7 +197,7 @@ describe('Akasha - Batch Learning', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
     await akasha.initialize();
 
@@ -205,7 +222,7 @@ describe('Akasha - Batch Learning', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
     await akasha.initialize();
 
@@ -237,7 +254,7 @@ describe('Akasha - Batch Learning', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
     await akasha.initialize();
 
@@ -271,7 +288,7 @@ describe('Akasha - Batch Learning', () => {
         password: 'password',
       },
       // No scope
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
     await akasha.initialize();
 
@@ -286,7 +303,7 @@ describe('Akasha - Batch Learning', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider as any);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider as any);
 
     await akasha.initialize();
 

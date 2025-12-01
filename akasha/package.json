@@ -51,6 +51,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "lbug": "^0.12.2",
     "neo4j-driver": "^6.0.1",
     "openai": "^6.8.1"
   },

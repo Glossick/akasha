@@ -32,15 +32,19 @@ describe('Akasha Integration Tests', () => {
     if (isConnected && shouldRunIntegrationTests) {
       try {
         const kg = akasha({
-          neo4j: {
-            uri: process.env.NEO4J_URI!,
-            user: process.env.NEO4J_USER!,
-            password: process.env.NEO4J_PASSWORD!,
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: process.env.NEO4J_URI!,
+              user: process.env.NEO4J_USER!,
+              password: process.env.NEO4J_PASSWORD!,
           },
-          scope: testScope,
+        },
+      },
+      scope: testScope,
           providers: {
-          embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
-          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
+            embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
+            llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
           },
         });
 
@@ -58,7 +62,9 @@ describe('Akasha Integration Tests', () => {
   describe('Initialization', () => {
     it.skipIf(!shouldRunIntegrationTests)('should connect to Neo4j and OpenAI', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -78,7 +84,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should cleanup connections', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -98,7 +106,9 @@ describe('Akasha Integration Tests', () => {
   describe('Learn (Extract and Create)', () => {
     it.skipIf(!shouldRunIntegrationTests)('should extract entities and relationships from text', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -159,7 +169,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should scrub embeddings by default in learn()', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -192,7 +204,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should include embeddings when includeEmbeddings is true in learn()', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -227,7 +241,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should create multiple contexts', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -273,7 +289,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -312,7 +330,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -349,7 +369,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should link entities to document', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -389,7 +411,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -430,7 +454,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -466,7 +492,9 @@ describe('Akasha Integration Tests', () => {
   describe('Ask (Query)', () => {
     it.skipIf(!shouldRunIntegrationTests)('should query knowledge graph and return answer', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -510,7 +538,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should scrub embeddings by default in ask()', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -546,7 +576,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should include embeddings when includeEmbeddings is true in ask()', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -593,7 +625,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg1 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -606,7 +640,9 @@ describe('Akasha Integration Tests', () => {
       });
 
       const kg2 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -679,7 +715,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg1 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -692,7 +730,9 @@ describe('Akasha Integration Tests', () => {
       });
 
       const kg2 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -742,7 +782,9 @@ describe('Akasha Integration Tests', () => {
   describe('Template System', () => {
     it.skipIf(!shouldRunIntegrationTests)('should work with default template (backward compatible)', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -798,7 +840,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -867,7 +911,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -914,7 +960,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1016,7 +1064,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1096,7 +1146,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1142,7 +1194,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1192,7 +1246,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1234,7 +1290,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1323,7 +1381,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1385,7 +1445,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1426,7 +1488,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1474,7 +1538,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1527,7 +1593,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1563,7 +1631,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1611,7 +1681,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1643,7 +1715,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1711,7 +1785,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1761,7 +1837,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1807,7 +1885,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1858,7 +1938,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1904,7 +1986,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1956,7 +2040,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg1 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -1969,7 +2055,9 @@ describe('Akasha Integration Tests', () => {
       });
 
       const kg2 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2016,7 +2104,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2077,7 +2167,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2127,7 +2219,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2182,7 +2276,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2248,7 +2344,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2297,7 +2395,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg1 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2310,7 +2410,9 @@ describe('Akasha Integration Tests', () => {
       });
 
       const kg2 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2357,7 +2459,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2394,7 +2498,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2431,7 +2537,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2476,7 +2584,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2512,7 +2622,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2549,7 +2661,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2597,7 +2711,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2634,7 +2750,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2679,7 +2797,9 @@ describe('Akasha Integration Tests', () => {
       };
 
       const kg1 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2692,7 +2812,9 @@ describe('Akasha Integration Tests', () => {
       });
 
       const kg2 = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2732,16 +2854,19 @@ describe('Akasha Integration Tests', () => {
   describe('Configuration Validation', () => {
     it.skipIf(!shouldRunIntegrationTests)('should validate valid configuration', () => {
       const config = {
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
         },
         providers: {
           embedding: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'text-embedding-3-small' } },
-          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' } },
+          llm: { type: 'openai', config: { apiKey: process.env.OPENAI_API_KEY!, model: 'gpt-4' }           },
         },
-        scope: testScope,
+      },
+      scope: testScope,
       };
 
       const result = Akasha.validateConfig(config);
@@ -2752,7 +2877,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should detect invalid Neo4j URI', () => {
       const config = {
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: '',
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2767,7 +2894,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should detect missing OpenAI API key when openai is provided', () => {
       const config = {
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -2787,7 +2916,9 @@ describe('Akasha Integration Tests', () => {
 
     it.skipIf(!shouldRunIntegrationTests)('should validate instance configuration', async () => {
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,

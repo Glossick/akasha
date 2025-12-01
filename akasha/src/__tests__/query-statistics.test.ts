@@ -10,11 +10,10 @@ const mockSession = {
   close: mock(() => Promise.resolve()),
 } as any;
 
-const mockNeo4jService = {
+const mockDatabaseProvider = {
   connect: mock(() => Promise.resolve()),
   disconnect: mock(() => Promise.resolve()),
   ensureVectorIndex: mock(() => Promise.resolve()),
-  getSession: mock(() => mockSession),
   findEntitiesByVector: mock(() => Promise.resolve([
     { id: '1', label: 'Person', properties: { name: 'Alice', scopeId: 'tenant-1', _similarity: 0.9 } },
   ])),
@@ -29,6 +28,28 @@ const mockNeo4jService = {
       { id: 'r1', type: 'KNOWS', from: '1', to: '2', properties: { scopeId: 'tenant-1' } },
     ],
   })),
+  getEntitiesFromDocuments: mock(() => Promise.resolve([])),
+  ping: mock(() => Promise.resolve(true)),
+  createEntities: mock(() => Promise.resolve([])),
+  createRelationships: mock(() => Promise.resolve([])),
+  createDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  linkEntityToDocument: mock(() => Promise.resolve({ id: 'rel1', type: 'CONTAINS_ENTITY', from: 'doc1', to: '1', properties: {} })),
+  findEntityByName: mock(() => Promise.resolve(null)),
+  findDocumentByText: mock(() => Promise.resolve(null)),
+  updateDocumentContextIds: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  updateEntityContextIds: mock(() => Promise.resolve({ id: '1', label: 'Entity', properties: {} })),
+  findEntityById: mock(() => Promise.resolve(null)),
+  updateEntity: mock(() => Promise.resolve({ id: '1', label: 'Entity', properties: {} })),
+  deleteEntity: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listEntities: mock(() => Promise.resolve([])),
+  findRelationshipById: mock(() => Promise.resolve(null)),
+  updateRelationship: mock(() => Promise.resolve({ id: '1', type: 'REL', from: '1', to: '2', properties: {} })),
+  deleteRelationship: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listRelationships: mock(() => Promise.resolve([])),
+  findDocumentById: mock(() => Promise.resolve(null)),
+  updateDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  deleteDocument: mock(() => Promise.resolve({ deleted: true, message: 'Deleted' })),
+  listDocuments: mock(() => Promise.resolve([])),
 } as any;
 
 // Mock providers
@@ -61,9 +82,9 @@ const mockLLMProvider: LLMProvider = {
 
 describe('Akasha - Query Statistics', () => {
   beforeEach(() => {
-    mockNeo4jService.findEntitiesByVector.mockClear();
-    mockNeo4jService.findDocumentsByVector.mockClear();
-    mockNeo4jService.retrieveSubgraph.mockClear();
+    mockDatabaseProvider.findEntitiesByVector.mockClear();
+    mockDatabaseProvider.findDocumentsByVector.mockClear();
+    mockDatabaseProvider.retrieveSubgraph.mockClear();
     mockEmbeddingProvider.generateEmbedding.mockClear();
     mockLLMProvider.generateResponse.mockClear();
   });
@@ -82,7 +103,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -109,7 +130,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -128,7 +149,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -145,7 +166,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -167,7 +188,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -192,7 +213,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 
@@ -226,7 +247,7 @@ describe('Akasha - Query Statistics', () => {
         password: 'password',
       },
       scope,
-    }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+    }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
     await akasha.initialize();
 

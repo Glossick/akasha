@@ -12,11 +12,26 @@ const mockSession = {
 } as any;
 
 // Mock dependencies
-const mockNeo4jService = {
+const mockDatabaseProvider = {
   connect: mock(() => Promise.resolve()),
   disconnect: mock(() => Promise.resolve()),
   ensureVectorIndex: mock(() => Promise.resolve()),
-  getSession: mock(() => mockSession),
+  getEntitiesFromDocuments: mock(() => Promise.resolve([])),
+  ping: mock(() => Promise.resolve(true)),
+  findEntitiesByVector: mock(() => Promise.resolve([])),
+  findDocumentsByVector: mock(() => Promise.resolve([])),
+  retrieveSubgraph: mock(() => Promise.resolve({ entities: [], relationships: [] })),
+  createEntities: mock(() => Promise.resolve([])),
+  createRelationships: mock(() => Promise.resolve([])),
+  createDocument: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  linkEntityToDocument: mock(() => Promise.resolve({ id: 'rel1', type: 'CONTAINS_ENTITY', from: 'doc1', to: '1', properties: {} })),
+  findEntityByName: mock(() => Promise.resolve(null)),
+  findDocumentByText: mock(() => Promise.resolve(null)),
+  updateDocumentContextIds: mock(() => Promise.resolve({ id: 'doc1', label: 'Document', properties: {} })),
+  updateEntityContextIds: mock(() => Promise.resolve({ id: '1', label: 'Entity', properties: {} })),
+  listEntities: mock(() => Promise.resolve([])),
+  listRelationships: mock(() => Promise.resolve([])),
+  listDocuments: mock(() => Promise.resolve([])),
   deleteEntity: mock(() => Promise.resolve({
     deleted: true,
     message: 'Entity deleted',
@@ -83,15 +98,15 @@ const mockLLMProvider = {
 
 describe('Akasha - Graph Management', () => {
   beforeEach(() => {
-    mockNeo4jService.deleteEntity.mockClear();
-    mockNeo4jService.deleteRelationship.mockClear();
-    mockNeo4jService.deleteDocument.mockClear();
-    mockNeo4jService.findEntityById.mockClear();
-    mockNeo4jService.findRelationshipById.mockClear();
-    mockNeo4jService.findDocumentById.mockClear();
-    mockNeo4jService.updateEntity.mockClear();
-    mockNeo4jService.updateRelationship.mockClear();
-    mockNeo4jService.updateDocument.mockClear();
+    mockDatabaseProvider.deleteEntity.mockClear();
+    mockDatabaseProvider.deleteRelationship.mockClear();
+    mockDatabaseProvider.deleteDocument.mockClear();
+    mockDatabaseProvider.findEntityById.mockClear();
+    mockDatabaseProvider.findRelationshipById.mockClear();
+    mockDatabaseProvider.findDocumentById.mockClear();
+    mockDatabaseProvider.updateEntity.mockClear();
+    mockDatabaseProvider.updateRelationship.mockClear();
+    mockDatabaseProvider.updateDocument.mockClear();
   });
 
   const scope: Scope = {
@@ -104,13 +119,32 @@ describe('Akasha - Graph Management', () => {
     describe('deleteEntity', () => {
       it('should delete entity by ID', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -118,23 +152,42 @@ describe('Akasha - Graph Management', () => {
 
         expect(result.deleted).toBe(true);
         expect(result.message).toBe('Entity deleted');
-        expect(mockNeo4jService.deleteEntity).toHaveBeenCalledWith('entity-1', 'tenant-1');
+        expect(mockDatabaseProvider.deleteEntity).toHaveBeenCalledWith('entity-1', 'tenant-1');
       });
 
       it('should throw error if entity not found', async () => {
-        mockNeo4jService.deleteEntity.mockResolvedValueOnce({
+        mockDatabaseProvider.deleteEntity.mockResolvedValueOnce({
           deleted: false,
           message: 'Entity not found',
         });
 
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -144,37 +197,75 @@ describe('Akasha - Graph Management', () => {
 
       it('should respect scope filtering', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
         await akasha.deleteEntity('entity-1');
 
         // Verify scopeId was passed to service
-        expect(mockNeo4jService.deleteEntity).toHaveBeenCalledWith('entity-1', 'tenant-1');
+        expect(mockDatabaseProvider.deleteEntity).toHaveBeenCalledWith('entity-1', 'tenant-1');
       });
 
       it('should return relationship count when cascading', async () => {
-        mockNeo4jService.deleteEntity.mockResolvedValueOnce({
+        mockDatabaseProvider.deleteEntity.mockResolvedValueOnce({
           deleted: true,
           message: 'Entity deleted',
           relatedRelationshipsDeleted: 3,
         });
 
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -186,32 +277,53 @@ describe('Akasha - Graph Management', () => {
 
       it('should require scope for delete operations', async () => {
         const akasha = new Akasha({
-          neo4j: {
+          database: {
+            type: 'neo4j',
+            config: {
             uri: 'bolt://localhost:7687',
             user: 'neo4j',
             password: 'password',
           },
           // No scope
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
         // Should still work but pass undefined scopeId
         await akasha.deleteEntity('entity-1');
-        expect(mockNeo4jService.deleteEntity).toHaveBeenCalledWith('entity-1', undefined);
+        expect(mockDatabaseProvider.deleteEntity).toHaveBeenCalledWith('entity-1', undefined);
       });
     });
 
     describe('deleteRelationship', () => {
       it('should delete relationship by ID', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -219,23 +331,42 @@ describe('Akasha - Graph Management', () => {
 
         expect(result.deleted).toBe(true);
         expect(result.message).toBe('Relationship deleted');
-        expect(mockNeo4jService.deleteRelationship).toHaveBeenCalledWith('rel-1', 'tenant-1');
+        expect(mockDatabaseProvider.deleteRelationship).toHaveBeenCalledWith('rel-1', 'tenant-1');
       });
 
       it('should throw error if relationship not found', async () => {
-        mockNeo4jService.deleteRelationship.mockResolvedValueOnce({
+        mockDatabaseProvider.deleteRelationship.mockResolvedValueOnce({
           deleted: false,
           message: 'Relationship not found',
         });
 
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -245,32 +376,70 @@ describe('Akasha - Graph Management', () => {
 
       it('should respect scope filtering', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
         await akasha.deleteRelationship('rel-1');
 
-        expect(mockNeo4jService.deleteRelationship).toHaveBeenCalledWith('rel-1', 'tenant-1');
+        expect(mockDatabaseProvider.deleteRelationship).toHaveBeenCalledWith('rel-1', 'tenant-1');
       });
     });
 
     describe('deleteDocument', () => {
       it('should delete document by ID', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -278,23 +447,42 @@ describe('Akasha - Graph Management', () => {
 
         expect(result.deleted).toBe(true);
         expect(result.message).toBe('Document deleted');
-        expect(mockNeo4jService.deleteDocument).toHaveBeenCalledWith('doc-1', 'tenant-1');
+        expect(mockDatabaseProvider.deleteDocument).toHaveBeenCalledWith('doc-1', 'tenant-1');
       });
 
       it('should throw error if document not found', async () => {
-        mockNeo4jService.deleteDocument.mockResolvedValueOnce({
+        mockDatabaseProvider.deleteDocument.mockResolvedValueOnce({
           deleted: false,
           message: 'Document not found',
         });
 
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -304,36 +492,74 @@ describe('Akasha - Graph Management', () => {
 
       it('should respect scope filtering', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
         await akasha.deleteDocument('doc-1');
 
-        expect(mockNeo4jService.deleteDocument).toHaveBeenCalledWith('doc-1', 'tenant-1');
+        expect(mockDatabaseProvider.deleteDocument).toHaveBeenCalledWith('doc-1', 'tenant-1');
       });
 
       it('should return relationship count when cascading', async () => {
-        mockNeo4jService.deleteDocument.mockResolvedValueOnce({
+        mockDatabaseProvider.deleteDocument.mockResolvedValueOnce({
           deleted: true,
           message: 'Document deleted',
           relatedRelationshipsDeleted: 5,
         });
 
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -349,13 +575,32 @@ describe('Akasha - Graph Management', () => {
     describe('updateEntity', () => {
       it('should update entity properties', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -367,7 +612,7 @@ describe('Akasha - Graph Management', () => {
 
         expect(result).toBeDefined();
         expect(result.id).toBe('entity-1');
-        expect(mockNeo4jService.updateEntity).toHaveBeenCalledWith(
+        expect(mockDatabaseProvider.updateEntity).toHaveBeenCalledWith(
           'entity-1',
           { name: 'Alice Updated', age: 30 },
           'tenant-1'
@@ -375,18 +620,37 @@ describe('Akasha - Graph Management', () => {
       });
 
       it('should throw error if entity not found', async () => {
-        mockNeo4jService.updateEntity.mockRejectedValueOnce(
+        mockDatabaseProvider.updateEntity.mockRejectedValueOnce(
           new Error('Entity with id entity-1 not found')
         );
 
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -397,19 +661,38 @@ describe('Akasha - Graph Management', () => {
 
       it('should respect scope filtering', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
         await akasha.updateEntity('entity-1', { properties: { name: 'Updated' } });
 
-        expect(mockNeo4jService.updateEntity).toHaveBeenCalledWith(
+        expect(mockDatabaseProvider.updateEntity).toHaveBeenCalledWith(
           'entity-1',
           { name: 'Updated' },
           'tenant-1'
@@ -431,15 +714,34 @@ describe('Akasha - Graph Management', () => {
         });
 
         const customMockService = {
-          ...mockNeo4jService,
+          ...mockDatabaseProvider,
           updateEntity: filteredMock,
         };
 
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
         }, customMockService as any, mockEmbeddingProvider, mockLLMProvider);
@@ -477,20 +779,39 @@ describe('Akasha - Graph Management', () => {
 
       it('should handle empty properties object', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
         const result = await akasha.updateEntity('entity-1', { properties: {} });
 
         expect(result).toBeDefined();
-        expect(mockNeo4jService.updateEntity).toHaveBeenCalledWith(
+        expect(mockDatabaseProvider.updateEntity).toHaveBeenCalledWith(
           'entity-1',
           {},
           'tenant-1'
@@ -501,13 +822,32 @@ describe('Akasha - Graph Management', () => {
     describe('updateRelationship', () => {
       it('should update relationship properties', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -519,7 +859,7 @@ describe('Akasha - Graph Management', () => {
 
         expect(result).toBeDefined();
         expect(result.id).toBe('rel-1');
-        expect(mockNeo4jService.updateRelationship).toHaveBeenCalledWith(
+        expect(mockDatabaseProvider.updateRelationship).toHaveBeenCalledWith(
           'rel-1',
           { since: '2020-01-01', role: 'Manager' },
           'tenant-1'
@@ -527,18 +867,37 @@ describe('Akasha - Graph Management', () => {
       });
 
       it('should throw error if relationship not found', async () => {
-        mockNeo4jService.updateRelationship.mockRejectedValueOnce(
+        mockDatabaseProvider.updateRelationship.mockRejectedValueOnce(
           new Error('Relationship with id rel-1 not found')
         );
 
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -549,19 +908,38 @@ describe('Akasha - Graph Management', () => {
 
       it('should respect scope filtering', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
         await akasha.updateRelationship('rel-1', { properties: { since: '2020-01-01' } });
 
-        expect(mockNeo4jService.updateRelationship).toHaveBeenCalledWith(
+        expect(mockDatabaseProvider.updateRelationship).toHaveBeenCalledWith(
           'rel-1',
           { since: '2020-01-01' },
           'tenant-1'
@@ -572,13 +950,32 @@ describe('Akasha - Graph Management', () => {
     describe('updateDocument', () => {
       it('should update document properties', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -590,7 +987,7 @@ describe('Akasha - Graph Management', () => {
 
         expect(result).toBeDefined();
         expect(result.id).toBe('doc-1');
-        expect(mockNeo4jService.updateDocument).toHaveBeenCalledWith(
+        expect(mockDatabaseProvider.updateDocument).toHaveBeenCalledWith(
           'doc-1',
           { metadata: { source: 'updated-source' } },
           'tenant-1'
@@ -598,18 +995,37 @@ describe('Akasha - Graph Management', () => {
       });
 
       it('should throw error if document not found', async () => {
-        mockNeo4jService.updateDocument.mockRejectedValueOnce(
+        mockDatabaseProvider.updateDocument.mockRejectedValueOnce(
           new Error('Document with id doc-1 not found')
         );
 
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -620,19 +1036,38 @@ describe('Akasha - Graph Management', () => {
 
       it('should respect scope filtering', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
         await akasha.updateDocument('doc-1', { properties: { metadata: {} } });
 
-        expect(mockNeo4jService.updateDocument).toHaveBeenCalledWith(
+        expect(mockDatabaseProvider.updateDocument).toHaveBeenCalledWith(
           'doc-1',
           { metadata: {} },
           'tenant-1'
@@ -641,13 +1076,32 @@ describe('Akasha - Graph Management', () => {
 
       it('should not allow updating text property', async () => {
         const akasha = new Akasha({
-          neo4j: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          database: {
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
+          },
+          providers: {
+            embedding: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'text-embedding-3-small',
+              },
+            },
+            llm: {
+              type: 'openai',
+              config: {
+                apiKey: 'test-key',
+                model: 'gpt-4',
+              },
+            },
           },
           scope,
-        }, mockNeo4jService as any, mockEmbeddingProvider, mockLLMProvider);
+        }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
 
         await akasha.initialize();
 
@@ -659,7 +1113,7 @@ describe('Akasha - Graph Management', () => {
         await akasha.updateDocument('doc-1', options);
 
         // Verify text was filtered out (service layer should handle this)
-        const callArgs = mockNeo4jService.updateDocument.mock.calls[0];
+        const callArgs = mockDatabaseProvider.updateDocument.mock.calls[0];
         // The service should filter out 'text' property
         expect(callArgs[1]).toHaveProperty('metadata');
       });

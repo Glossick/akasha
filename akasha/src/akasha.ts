@@ -27,7 +27,8 @@ import type {
   BatchProgressCallback,
   ConfigValidationResult,
 } from './types';
-import { Neo4jService } from './services/neo4j.service';
+import type { DatabaseProvider } from './services/providers/database/interfaces';
+import { createDatabaseProvider } from './services/providers/database/factory';
 import type { EmbeddingProvider, LLMProvider } from './services/providers/interfaces';
 import { createProvidersFromConfig } from './services/providers/factory';
 import { generateEntityText } from './utils/entity-embedding';
@@ -35,7 +36,6 @@ import { generateExtractionPrompt } from './utils/prompt-template';
 import { scrubEmbeddings } from './utils/scrub-embeddings';
 import { generateSystemMetadata } from './utils/system-metadata';
 import { randomUUID } from 'crypto';
-import neo4j from 'neo4j-driver';
 import { EventEmitter } from './events/event-emitter';
 import type { AkashaEvent, EventType } from './events/types';
 
@@ -43,7 +43,7 @@ import type { AkashaEvent, EventType } from './events/types';
  * Akasha - Main GraphRAG library class
  */
 export class Akasha {
-  private neo4j: Neo4jService;
+  private databaseProvider: DatabaseProvider;
   private embeddingProvider: EmbeddingProvider;
   private llmProvider: LLMProvider;
   private scope?: Scope;
@@ -53,7 +53,7 @@ export class Akasha {
 
   constructor(
     config: AkashaConfig,
-    neo4jService?: Neo4jService,
+    databaseProvider?: DatabaseProvider,
     embeddingProvider?: EmbeddingProvider,
     llmProvider?: LLMProvider
   ) {
@@ -62,7 +62,7 @@ export class Akasha {
     this.extractionPromptConfig = config.extractionPrompt;
 
     // Initialize services
-    this.neo4j = neo4jService || new Neo4jService(config.neo4j);
+    this.databaseProvider = databaseProvider || createDatabaseProvider(config.database);
     
     // Initialize providers (use injected or create from config)
     if (embeddingProvider && llmProvider) {
@@ -93,36 +93,52 @@ export class Akasha {
     const errors: Array<{ field: string; message: string }> = [];
     const warnings: Array<{ field: string; message: string }> = [];
 
-    // Validate Neo4j configuration
-    if (!config.neo4j) {
+    // Validate database configuration
+    if (!config.database) {
       errors.push({
-        field: 'neo4j',
-        message: 'Neo4j configuration is required',
+        field: 'database',
+        message: 'Database configuration is required',
       });
     } else {
-      if (!config.neo4j.uri || typeof config.neo4j.uri !== 'string' || config.neo4j.uri.trim() === '') {
-        errors.push({
-          field: 'neo4j.uri',
-          message: 'Neo4j URI is required and must be a non-empty string',
-        });
-      } else if (!config.neo4j.uri.startsWith('bolt://') && !config.neo4j.uri.startsWith('neo4j://')) {
-        warnings.push({
-          field: 'neo4j.uri',
-          message: 'Neo4j URI should start with "bolt://" or "neo4j://"',
-        });
-      }
+      if (config.database.type === 'neo4j') {
+        const dbConfig = config.database.config;
+        if (!dbConfig.uri || typeof dbConfig.uri !== 'string' || dbConfig.uri.trim() === '') {
+          errors.push({
+            field: 'database.config.uri',
+            message: 'Neo4j URI is required and must be a non-empty string',
+          });
+        } else if (!dbConfig.uri.startsWith('bolt://') && !dbConfig.uri.startsWith('neo4j://')) {
+          warnings.push({
+            field: 'database.config.uri',
+            message: 'Neo4j URI should start with "bolt://" or "neo4j://"',
+          });
+        }
 
-      if (!config.neo4j.user || typeof config.neo4j.user !== 'string' || config.neo4j.user.trim() === '') {
-        errors.push({
-          field: 'neo4j.user',
-          message: 'Neo4j user is required and must be a non-empty string',
-        });
-      }
+        if (!dbConfig.user || typeof dbConfig.user !== 'string' || dbConfig.user.trim() === '') {
+          errors.push({
+            field: 'database.config.user',
+            message: 'Neo4j user is required and must be a non-empty string',
+          });
+        }
 
-      if (!config.neo4j.password || typeof config.neo4j.password !== 'string' || config.neo4j.password.trim() === '') {
+        if (!dbConfig.password || typeof dbConfig.password !== 'string' || dbConfig.password.trim() === '') {
+          errors.push({
+            field: 'database.config.password',
+            message: 'Neo4j password is required and must be a non-empty string',
+          });
+        }
+      } else if (config.database.type === 'kuzu') {
+        const dbConfig = config.database.config;
+        if (!dbConfig.databasePath || typeof dbConfig.databasePath !== 'string' || dbConfig.databasePath.trim() === '') {
+          errors.push({
+            field: 'database.config.databasePath',
+            message: 'Kuzu database path is required and must be a non-empty string',
+          });
+        }
+      } else {
         errors.push({
-          field: 'neo4j.password',
-          message: 'Neo4j password is required and must be a non-empty string',
+          field: 'database.type',
+          message: `Unknown database type: "${(config.database as any).type}". Must be one of: neo4j, kuzu`,
         });
       }
     }
@@ -311,15 +327,15 @@ export class Akasha {
    * Initialize connections
    */
   async initialize(): Promise<void> {
-    await this.neo4j.connect();
-    await this.neo4j.ensureVectorIndex();
+    await this.databaseProvider.connect();
+    await this.databaseProvider.ensureVectorIndex();
   }
 
   /**
    * Cleanup connections
    */
   async cleanup(): Promise<void> {
-    await this.neo4j.disconnect();
+    await this.databaseProvider.disconnect();
   }
 
   /**
@@ -358,7 +374,7 @@ export class Akasha {
       : undefined;
     
     if (strategy === 'documents' || strategy === 'both') {
-      documents = await this.neo4j.findDocumentsByVector(
+      documents = await this.databaseProvider.findDocumentsByVector(
         queryEmbedding,
         10,
         similarityThreshold,
@@ -375,7 +391,7 @@ export class Akasha {
     }
 
     if (strategy === 'entities' || strategy === 'both') {
-      entities = await this.neo4j.findEntitiesByVector(
+      entities = await this.databaseProvider.findEntitiesByVector(
         queryEmbedding,
         10,
         similarityThreshold,
@@ -394,9 +410,6 @@ export class Akasha {
     // If searching documents, also get entities connected to those documents
     // Only retrieve entities from documents that passed the similarity threshold
     if (documents.length > 0) {
-      // Get entities connected to found documents via CONTAINS_ENTITY
-      // Only query for entities from documents that are actually relevant (passed threshold)
-      const session = this.neo4j.getSession();
       try {
         // Only include document IDs that passed the similarity threshold
         // (documents array is already filtered above, but double-check)
@@ -407,29 +420,8 @@ export class Akasha {
           })
           .map((d) => d.id);
 
-        if (relevantDocIds.length === 0) {
-          // No relevant documents, skip entity retrieval
-        } else {
-          const docIdsList = relevantDocIds.map(id => neo4j.int(id).toString()).join(', ');
-          let docQuery = `
-            MATCH (d:Document)-[:CONTAINS_ENTITY]->(e:Entity)
-            WHERE id(d) IN [${docIdsList}]
-          `;
-          
-          if (scopeId) {
-            docQuery += ` AND d.scopeId = $scopeId AND e.scopeId = $scopeId`;
-          }
-          
-          docQuery += `
-            RETURN DISTINCT id(e) as id, labels(e) as labels, properties(e) as properties
-          `;
-
-          const docResult = await session.run(docQuery, scopeId ? { scopeId } : {});
-          const docEntities = docResult.records.map((record: any) => ({
-            id: record.get('id').toString(),
-            label: record.get('labels')[0] || 'Unknown',
-            properties: record.get('properties') || {},
-          }));
+        if (relevantDocIds.length > 0) {
+          const docEntities = await this.databaseProvider.getEntitiesFromDocuments(relevantDocIds, scopeId);
 
           // Merge with existing entities (avoid duplicates)
           const existingEntityIds = new Set(entities.map(e => e.id));
@@ -442,8 +434,6 @@ export class Akasha {
         }
       } catch (error) {
         console.warn('Warning: Could not retrieve entities from documents:', error);
-      } finally {
-        await session.close();
       }
     }
 
@@ -465,7 +455,7 @@ export class Akasha {
     // Step 2: Retrieve subgraph starting from found entities
     const subgraphStartTime = Date.now();
     const entityLabels = [...new Set(entities.map((e) => e.label))];
-    const subgraph = await this.neo4j.retrieveSubgraph(
+    const subgraph = await this.databaseProvider.retrieveSubgraph(
       entityLabels,
       [], // All relationship types
       maxDepth,
@@ -574,10 +564,10 @@ export class Akasha {
       validTo: options?.validTo,
     });
     
-    const existingDocument = await this.neo4j.findDocumentByText(text, scopeId);
+    const existingDocument = await this.databaseProvider.findDocumentByText(text, scopeId);
     if (existingDocument) {
       // Document already exists - update contextIds array
-      document = await this.neo4j.updateDocumentContextIds(existingDocument.id, contextId);
+      document = await this.databaseProvider.updateDocumentContextIds(existingDocument.id, contextId);
       documentCreated = 0;
       
       // Emit document.updated event (contextIds updated)
@@ -591,7 +581,7 @@ export class Akasha {
       // Create new document node with system metadata
       const documentEmbedding = await this.embeddingProvider.generateEmbedding(text);
       
-      document = await this.neo4j.createDocument({
+      document = await this.databaseProvider.createDocument({
         properties: {
           text,
           scopeId, // Ensure scopeId is always included
@@ -639,11 +629,11 @@ export class Akasha {
       
       if (entityName) {
         // Check if entity already exists
-        const existingEntity = await this.neo4j.findEntityByName(entityName, scopeId);
+        const existingEntity = await this.databaseProvider.findEntityByName(entityName, scopeId);
         
         if (existingEntity) {
           // Entity exists - update contextIds array
-          const updatedEntity = await this.neo4j.updateEntityContextIds(existingEntity.id, contextId);
+          const updatedEntity = await this.databaseProvider.updateEntityContextIds(existingEntity.id, contextId);
           createdEntities.push(updatedEntity);
           entityNameToIdMap.set(entityName, updatedEntity.id);
           
@@ -667,7 +657,7 @@ export class Akasha {
             },
           };
           
-          const newEntity = await this.neo4j.createEntities([entityWithMetadata], [entityEmbedding]);
+          const newEntity = await this.databaseProvider.createEntities([entityWithMetadata], [entityEmbedding]);
           createdEntities.push(newEntity[0]);
           entityNameToIdMap.set(entityName, newEntity[0].id);
           
@@ -685,7 +675,7 @@ export class Akasha {
     // Step 4: Link entities to document via CONTAINS_ENTITY relationships
     for (const entity of createdEntities) {
       try {
-        const relationship = await this.neo4j.linkEntityToDocument(document.id, entity.id, scopeId);
+        const relationship = await this.databaseProvider.linkEntityToDocument(document.id, entity.id, scopeId);
         
         // Emit relationship.created event for CONTAINS_ENTITY
         this.emit({
@@ -749,7 +739,7 @@ export class Akasha {
     }
 
     // Step 6: Create relationships in Neo4j
-    const createdRelationships = await this.neo4j.createRelationships(relationshipsToCreate);
+    const createdRelationships = await this.databaseProvider.createRelationships(relationshipsToCreate);
     
     // Emit relationship.created events for all created relationships
     for (const relationship of createdRelationships) {
@@ -1265,7 +1255,7 @@ export class Akasha {
     const timestamp = new Date().toISOString();
     const health: HealthStatus = {
       status: 'healthy',
-      neo4j: {
+      database: {
         connected: false,
       },
       openai: {
@@ -1274,18 +1264,16 @@ export class Akasha {
       timestamp,
     };
 
-    // Check Neo4j
+    // Check database
     try {
-      const session = this.neo4j.getSession();
-      try {
-        await session.run('RETURN 1');
-        health.neo4j.connected = true;
-      } finally {
-        await session.close();
+      const connected = await this.databaseProvider.ping();
+      health.database.connected = connected;
+      if (!connected) {
+        health.database.error = 'Ping failed';
       }
     } catch (error) {
-      health.neo4j.connected = false;
-      health.neo4j.error = error instanceof Error ? error.message : 'Unknown error';
+      health.database.connected = false;
+      health.database.error = error instanceof Error ? error.message : 'Unknown error';
     }
 
     // Check embedding provider
@@ -1298,9 +1286,9 @@ export class Akasha {
     }
 
     // Determine overall status
-    if (!health.neo4j.connected && !health.openai.available) {
+    if (!health.database.connected && !health.openai.available) {
       health.status = 'unhealthy';
-    } else if (!health.neo4j.connected || !health.openai.available) {
+    } else if (!health.database.connected || !health.openai.available) {
       health.status = 'degraded';
     }
 
@@ -1314,9 +1302,9 @@ export class Akasha {
     const scopeId = this.scope?.id;
     
     // Get entity before deletion for event
-    const entity = await this.neo4j.findEntityById(entityId, scopeId);
+    const entity = await this.databaseProvider.findEntityById(entityId, scopeId);
     
-    const result = await this.neo4j.deleteEntity(entityId, scopeId);
+    const result = await this.databaseProvider.deleteEntity(entityId, scopeId);
     
     // Emit entity.deleted event if entity existed
     if (entity && result.deleted) {
@@ -1338,9 +1326,9 @@ export class Akasha {
     const scopeId = this.scope?.id;
     
     // Get relationship before deletion for event
-    const relationship = await this.neo4j.findRelationshipById(relationshipId, scopeId);
+    const relationship = await this.databaseProvider.findRelationshipById(relationshipId, scopeId);
     
-    const result = await this.neo4j.deleteRelationship(relationshipId, scopeId);
+    const result = await this.databaseProvider.deleteRelationship(relationshipId, scopeId);
     
     // Emit relationship.deleted event if relationship existed
     if (relationship && result.deleted) {
@@ -1362,9 +1350,9 @@ export class Akasha {
     const scopeId = this.scope?.id;
     
     // Get document before deletion for event
-    const document = await this.neo4j.findDocumentById(documentId, scopeId);
+    const document = await this.databaseProvider.findDocumentById(documentId, scopeId);
     
-    const result = await this.neo4j.deleteDocument(documentId, scopeId);
+    const result = await this.databaseProvider.deleteDocument(documentId, scopeId);
     
     // Emit document.deleted event if document existed
     if (document && result.deleted) {
@@ -1384,7 +1372,7 @@ export class Akasha {
    */
   async findEntity(entityId: string): Promise<Entity | null> {
     const scopeId = this.scope?.id;
-    return await this.neo4j.findEntityById(entityId, scopeId);
+    return await this.databaseProvider.findEntityById(entityId, scopeId);
   }
 
   /**
@@ -1392,7 +1380,7 @@ export class Akasha {
    */
   async findRelationship(relationshipId: string): Promise<Relationship | null> {
     const scopeId = this.scope?.id;
-    return await this.neo4j.findRelationshipById(relationshipId, scopeId);
+    return await this.databaseProvider.findRelationshipById(relationshipId, scopeId);
   }
 
   /**
@@ -1400,7 +1388,7 @@ export class Akasha {
    */
   async findDocument(documentId: string): Promise<Document | null> {
     const scopeId = this.scope?.id;
-    return await this.neo4j.findDocumentById(documentId, scopeId);
+    return await this.databaseProvider.findDocumentById(documentId, scopeId);
   }
 
   /**
@@ -1408,7 +1396,7 @@ export class Akasha {
    */
   async updateEntity(entityId: string, options: UpdateEntityOptions): Promise<Entity> {
     const scopeId = this.scope?.id;
-    const updatedEntity = await this.neo4j.updateEntity(entityId, options.properties || {}, scopeId);
+    const updatedEntity = await this.databaseProvider.updateEntity(entityId, options.properties || {}, scopeId);
     
     // Emit entity.updated event
     this.emit({
@@ -1426,7 +1414,7 @@ export class Akasha {
    */
   async updateRelationship(relationshipId: string, options: UpdateRelationshipOptions): Promise<Relationship> {
     const scopeId = this.scope?.id;
-    const updatedRelationship = await this.neo4j.updateRelationship(relationshipId, options.properties || {}, scopeId);
+    const updatedRelationship = await this.databaseProvider.updateRelationship(relationshipId, options.properties || {}, scopeId);
     
     // Emit relationship.updated event
     this.emit({
@@ -1444,7 +1432,7 @@ export class Akasha {
    */
   async updateDocument(documentId: string, options: UpdateDocumentOptions): Promise<Document> {
     const scopeId = this.scope?.id;
-    const updatedDocument = await this.neo4j.updateDocument(documentId, options.properties || {}, scopeId);
+    const updatedDocument = await this.databaseProvider.updateDocument(documentId, options.properties || {}, scopeId);
     
     // Emit document.updated event
     this.emit({
@@ -1464,7 +1452,7 @@ export class Akasha {
     const scopeId = this.scope?.id;
     const limit = options?.limit ?? 100;
     const offset = options?.offset ?? 0;
-    return await this.neo4j.listEntities(options?.label, limit, offset, scopeId);
+    return await this.databaseProvider.listEntities(options?.label, limit, offset, scopeId);
   }
 
   /**
@@ -1474,7 +1462,7 @@ export class Akasha {
     const scopeId = this.scope?.id;
     const limit = options?.limit ?? 100;
     const offset = options?.offset ?? 0;
-    return await this.neo4j.listRelationships(
+    return await this.databaseProvider.listRelationships(
       options?.type,
       options?.fromId,
       options?.toId,
@@ -1491,6 +1479,6 @@ export class Akasha {
     const scopeId = this.scope?.id;
     const limit = options?.limit ?? 100;
     const offset = options?.offset ?? 0;
-    return await this.neo4j.listDocuments(limit, offset, scopeId);
+    return await this.databaseProvider.listDocuments(limit, offset, scopeId);
   }
 }

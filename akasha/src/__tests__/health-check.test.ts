@@ -45,10 +45,13 @@ describe('Akasha - Health Check', () => {
     } as any;
 
     const akasha = new Akasha({
-      neo4j: {
-        uri: 'bolt://localhost:7687',
-        user: 'neo4j',
-        password: 'password',
+      database: {
+        type: 'neo4j',
+        config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+        },
       },
       scope,
       providers: {
@@ -74,7 +77,7 @@ describe('Akasha - Health Check', () => {
     const health = await akasha.healthCheck();
 
     expect(health.status).toBe('healthy');
-    expect(health.neo4j.connected).toBe(true);
+    expect(health.database.connected).toBe(true);
     expect(health.openai.available).toBe(true);
     expect(health.timestamp).toBeDefined();
   });
@@ -108,10 +111,13 @@ describe('Akasha - Health Check', () => {
     } as any;
 
     const akasha = new Akasha({
-      neo4j: {
-        uri: 'bolt://localhost:7687',
-        user: 'neo4j',
-        password: 'password',
+      database: {
+        type: 'neo4j',
+        config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+        },
       },
       scope,
       providers: {
@@ -137,8 +143,8 @@ describe('Akasha - Health Check', () => {
     const health = await akasha.healthCheck();
 
     expect(health.status).toBe('degraded');
-    expect(health.neo4j.connected).toBe(false);
-    expect(health.neo4j.error).toBeDefined();
+    expect(health.database.connected).toBe(false);
+    expect(health.database.error).toBeDefined();
     expect(health.openai.available).toBe(true);
   });
 
@@ -166,10 +172,13 @@ describe('Akasha - Health Check', () => {
     } as any;
 
     const akasha = new Akasha({
-      neo4j: {
-        uri: 'bolt://localhost:7687',
-        user: 'neo4j',
-        password: 'password',
+      database: {
+        type: 'neo4j',
+        config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+        },
       },
       scope,
       providers: {
@@ -195,7 +204,7 @@ describe('Akasha - Health Check', () => {
     const health = await akasha.healthCheck();
 
     expect(health.status).toBe('degraded');
-    expect(health.neo4j.connected).toBe(true);
+    expect(health.database.connected).toBe(true);
     expect(health.openai.available).toBe(false);
     expect(health.openai.error).toBeDefined();
   });
@@ -229,10 +238,13 @@ describe('Akasha - Health Check', () => {
     } as any;
 
     const akasha = new Akasha({
-      neo4j: {
-        uri: 'bolt://localhost:7687',
-        user: 'neo4j',
-        password: 'password',
+      database: {
+        type: 'neo4j',
+        config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+        },
       },
       scope,
       providers: {
@@ -258,7 +270,7 @@ describe('Akasha - Health Check', () => {
     const health = await akasha.healthCheck();
 
     expect(health.status).toBe('unhealthy');
-    expect(health.neo4j.connected).toBe(false);
+    expect(health.database.connected).toBe(false);
     expect(health.openai.available).toBe(false);
   });
 
@@ -286,10 +298,13 @@ describe('Akasha - Health Check', () => {
     } as any;
 
     const akasha = new Akasha({
-      neo4j: {
-        uri: 'bolt://localhost:7687',
-        user: 'neo4j',
-        password: 'password',
+      database: {
+        type: 'neo4j',
+        config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+        },
       },
       scope,
       providers: {

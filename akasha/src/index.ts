@@ -29,6 +29,10 @@ export type {
   Scope,
   Context,
   AkashaConfig,
+  DatabaseType,
+  DatabaseConfig,
+  Neo4jConfig,
+  KuzuConfig,
   QueryOptions,
   QueryStrategy,
   GraphRAGQuery,
@@ -61,6 +65,14 @@ export type {
   EmbeddingProvider,
   LLMProvider,
 } from './services/providers/interfaces';
+
+// Export database provider interface and implementations
+export type {
+  DatabaseProvider,
+} from './services/providers/database/interfaces';
+
+export { Neo4jProvider } from './services/providers/database/neo4j-provider';
+export { createDatabaseProvider } from './services/providers/database/factory';
 
 // Export provider implementations for advanced usage
 export { OpenAIEmbeddingProvider } from './services/providers/embedding/openai-embedding.provider';

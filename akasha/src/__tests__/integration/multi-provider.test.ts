@@ -67,7 +67,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scope.id);
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -136,7 +138,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scope.id);
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -197,7 +201,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scope.id);
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -274,7 +280,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scopeOpenAI.id);
 
       const kgOpenAI = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -305,7 +313,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scopeAnthropic.id);
 
       const kgAnthropic = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -336,7 +346,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scopeDeepSeek.id);
 
       const kgDeepSeek = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -380,7 +392,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scope.id);
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -427,7 +441,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scope.id);
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -476,7 +492,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scope.id);
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -537,7 +555,9 @@ describe('Multi-Provider Integration Tests', () => {
       createdScopes.push(scope.id);
 
       const kg = akasha({
-        neo4j: {
+        database: {
+          type: 'neo4j',
+          config: {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
@@ -585,7 +605,9 @@ describe('Multi-Provider Integration Tests', () => {
     it('should reject config without providers', () => {
       expect(() => {
         akasha({
-          neo4j: {
+          database: {
+          type: 'neo4j',
+          config: {
             uri: 'bolt://localhost:7687',
             user: 'neo4j',
             password: 'password',
@@ -597,7 +619,9 @@ describe('Multi-Provider Integration Tests', () => {
     it('should reject invalid embedding provider type', () => {
       expect(() => {
         akasha({
-          neo4j: {
+          database: {
+          type: 'neo4j',
+          config: {
             uri: 'bolt://localhost:7687',
             user: 'neo4j',
             password: 'password',
@@ -619,7 +643,9 @@ describe('Multi-Provider Integration Tests', () => {
     it('should reject invalid LLM provider type', () => {
       expect(() => {
         akasha({
-          neo4j: {
+          database: {
+          type: 'neo4j',
+          config: {
             uri: 'bolt://localhost:7687',
             user: 'neo4j',
             password: 'password',
