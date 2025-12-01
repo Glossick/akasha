@@ -1,6 +1,6 @@
 {
   "name": "@glossick/akasha",
-  "version": "0.9.12",
+  "version": "0.9.2",
   "description": "A minimal, developer-friendly GraphRAG library with multi-tenant support",
   "type": "module",
   "main": "./dist/index.js",
