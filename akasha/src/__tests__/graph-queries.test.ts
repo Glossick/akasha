@@ -97,9 +97,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -139,9 +139,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -184,9 +184,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -230,9 +230,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -271,9 +271,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -307,14 +307,36 @@ describe('Akasha - Direct Graph Queries', () => {
       );
     });
 
-    it('should handle includeEmbeddings option', async () => {
+    it('should scrub embeddings by default (includeEmbeddings: false or undefined)', async () => {
+      // Setup: Mock database provider to return entities WITH embeddings
+      mockDatabaseProvider.listEntities.mockResolvedValueOnce([
+        { 
+          id: '1', 
+          label: 'Person', 
+          properties: { 
+            name: 'Alice', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4] // Has embedding
+          } 
+        },
+        { 
+          id: '2', 
+          label: 'Person', 
+          properties: { 
+            name: 'Bob', 
+            scopeId: 'tenant-1',
+            embedding: [0.5, 0.6, 0.7, 0.8] // Has embedding
+          } 
+        },
+      ]);
+
       const akasha = new Akasha({
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -338,15 +360,78 @@ describe('Akasha - Direct Graph Queries', () => {
 
       await akasha.initialize();
 
-      const options: ListEntitiesOptions = {
-        includeEmbeddings: true,
-      };
+      // Test 1: Default (includeEmbeddings: undefined)
+      const result1 = await akasha.listEntities();
+      expect(result1[0].properties.embedding).toBeUndefined();
+      expect(result1[1].properties.embedding).toBeUndefined();
+      expect(result1[0].properties.name).toBe('Alice'); // Other properties preserved
 
-      const result = await akasha.listEntities(options);
+      // Reset mock
+      mockDatabaseProvider.listEntities.mockResolvedValueOnce([
+        { 
+          id: '1', 
+          label: 'Person', 
+          properties: { 
+            name: 'Alice', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4]
+          } 
+        },
+      ]);
 
-      // Note: includeEmbeddings is handled at the service layer
-      expect(mockDatabaseProvider.listEntities).toHaveBeenCalled();
-      expect(result.length).toBeGreaterThan(0);
+      // Test 2: Explicitly false
+      const result2 = await akasha.listEntities({ includeEmbeddings: false });
+      expect(result2[0].properties.embedding).toBeUndefined();
+    });
+
+    it('should include embeddings when includeEmbeddings: true', async () => {
+      mockDatabaseProvider.listEntities.mockResolvedValueOnce([
+        { 
+          id: '1', 
+          label: 'Person', 
+          properties: { 
+            name: 'Alice', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4]
+          } 
+        },
+      ]);
+
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listEntities({ includeEmbeddings: true });
+      
+      expect(result[0].properties.embedding).toBeDefined();
+      expect(result[0].properties.embedding).toEqual([0.1, 0.2, 0.3, 0.4]);
+      expect(result[0].properties.name).toBe('Alice'); // Other properties preserved
     });
   });
 
@@ -356,9 +441,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -400,9 +485,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -447,9 +532,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -495,9 +580,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -543,9 +628,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -580,6 +665,106 @@ describe('Akasha - Direct Graph Queries', () => {
         'tenant-1'
       );
     });
+
+    it('should scrub embeddings from relationships by default', async () => {
+      mockDatabaseProvider.listRelationships.mockResolvedValueOnce([
+        { 
+          id: 'r1', 
+          type: 'WORKS_FOR', 
+          from: '1', 
+          to: '2', 
+          properties: { 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3] // Has embedding
+          } 
+        },
+      ]);
+
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listRelationships();
+      
+      expect(result[0].properties.embedding).toBeUndefined();
+      expect(result[0].properties.scopeId).toBe('tenant-1'); // Other properties preserved
+    });
+
+    it('should include embeddings in relationships when includeEmbeddings: true', async () => {
+      mockDatabaseProvider.listRelationships.mockResolvedValueOnce([
+        { 
+          id: 'r1', 
+          type: 'WORKS_FOR', 
+          from: '1', 
+          to: '2', 
+          properties: { 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3]
+          } 
+        },
+      ]);
+
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listRelationships({ includeEmbeddings: true });
+      
+      expect(result[0].properties.embedding).toBeDefined();
+      expect(result[0].properties.embedding).toEqual([0.1, 0.2, 0.3]);
+    });
   });
 
   describe('listDocuments', () => {
@@ -588,9 +773,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -629,9 +814,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -669,14 +854,112 @@ describe('Akasha - Direct Graph Queries', () => {
       );
     });
 
+    it('should scrub embeddings from documents by default', async () => {
+      mockDatabaseProvider.listDocuments.mockResolvedValueOnce([
+        { 
+          id: 'doc1', 
+          label: 'Document', 
+          properties: { 
+            text: 'Test document', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4] // Has embedding
+          } 
+        },
+      ]);
+
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listDocuments();
+      
+      expect(result[0].properties.embedding).toBeUndefined();
+      expect(result[0].properties.text).toBe('Test document'); // Other properties preserved
+    });
+
+    it('should include embeddings in documents when includeEmbeddings: true', async () => {
+      mockDatabaseProvider.listDocuments.mockResolvedValueOnce([
+        { 
+          id: 'doc1', 
+          label: 'Document', 
+          properties: { 
+            text: 'Test document', 
+            scopeId: 'tenant-1',
+            embedding: [0.1, 0.2, 0.3, 0.4]
+          } 
+        },
+      ]);
+
+      const akasha = new Akasha({
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+        scope,
+      }, mockDatabaseProvider as any, mockEmbeddingProvider, mockLLMProvider);
+
+      await akasha.initialize();
+
+      const result = await akasha.listDocuments({ includeEmbeddings: true });
+      
+      expect(result[0].properties.embedding).toBeDefined();
+      expect(result[0].properties.embedding).toEqual([0.1, 0.2, 0.3, 0.4]);
+    });
+
     it('should respect scope filtering', async () => {
       const akasha = new Akasha({
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -714,9 +997,9 @@ describe('Akasha - Direct Graph Queries', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {

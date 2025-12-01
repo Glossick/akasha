@@ -177,9 +177,9 @@ describe('Akasha - Progress Callbacks', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       providers: {
@@ -244,9 +244,9 @@ describe('Akasha - Progress Callbacks', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       providers: {
@@ -309,9 +309,9 @@ describe('Akasha - Progress Callbacks', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       providers: {
@@ -358,9 +358,9 @@ describe('Akasha - Progress Callbacks', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       providers: {
@@ -410,9 +410,9 @@ describe('Akasha - Progress Callbacks', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       providers: {
@@ -450,9 +450,9 @@ describe('Akasha - Progress Callbacks', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       providers: {

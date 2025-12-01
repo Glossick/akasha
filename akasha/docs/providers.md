@@ -17,9 +17,11 @@ These are independent - you can mix and match providers (e.g., OpenAI embeddings
 
 | Provider | Models | Dimensions | Notes |
 |----------|--------|------------|-------|
-| **OpenAI** | `text-embedding-3-small` | 1536 (default) | Recommended for most use cases |
+| **OpenAI** | `text-embedding-3-small` | 1536 (default) | ⚠️ **Only embedding provider currently supported** |
 | | `text-embedding-3-large` | 3072 (default) | Higher quality, larger vectors |
 | | `text-embedding-ada-002` | 1536 | Legacy model |
+
+**Note:** DeepSeek and Anthropic do not provide embedding models. Use OpenAI for embeddings.
 
 ### LLM Providers
 
@@ -33,6 +35,35 @@ These are independent - you can mix and match providers (e.g., OpenAI embeddings
 | **DeepSeek** | `deepseek-chat` | Cost-effective, OpenAI-compatible |
 | | `deepseek-reasoner` | Thinking mode (enhanced reasoning) |
 
+### Database Providers
+
+Akasha supports multiple graph database backends. See [Database Providers Guide](./database-providers.md) for detailed information.
+
+**Quick Reference:**
+- **Neo4j:** Server-based, production-ready
+- **LadybugDB:** Embedded, no server required
+
+**Configuration:**
+```typescript
+// Neo4j
+database: {
+  type: 'neo4j',
+  config: {
+    uri: 'bolt://localhost:7687',
+    user: 'neo4j',
+    password: 'password',
+  },
+}
+
+// LadybugDB
+database: {
+  type: 'ladybug',
+  config: {
+    databasePath: './my-database',
+  },
+}
+```
+
 ## Configuration
 
 ### Basic Configuration (OpenAI Only)
@@ -41,10 +72,13 @@ These are independent - you can mix and match providers (e.g., OpenAI embeddings
 import { akasha } from '@glossick/akasha';
 
 const kg = akasha({
-  neo4j: {
-    uri: process.env.NEO4J_URI!,
-    user: process.env.NEO4J_USER!,
-    password: process.env.NEO4J_PASSWORD!,
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: process.env.NEO4J_URI!,
+      user: process.env.NEO4J_USER!,
+      password: process.env.NEO4J_PASSWORD!,
+    },
   },
   providers: {
     embedding: {
@@ -69,10 +103,13 @@ const kg = akasha({
 
 ```typescript
 const kg = akasha({
-  neo4j: {
-    uri: process.env.NEO4J_URI!,
-    user: process.env.NEO4J_USER!,
-    password: process.env.NEO4J_PASSWORD!,
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: process.env.NEO4J_URI!,
+      user: process.env.NEO4J_USER!,
+      password: process.env.NEO4J_PASSWORD!,
+    },
   },
   providers: {
     embedding: {
@@ -99,10 +136,13 @@ Cost-effective alternative using DeepSeek's OpenAI-compatible API:
 
 ```typescript
 const kg = akasha({
-  neo4j: {
-    uri: process.env.NEO4J_URI!,
-    user: process.env.NEO4J_USER!,
-    password: process.env.NEO4J_PASSWORD!,
+  database: {
+    type: 'neo4j',
+    config: {
+      uri: process.env.NEO4J_URI!,
+      user: process.env.NEO4J_USER!,
+      password: process.env.NEO4J_PASSWORD!,
+    },
   },
   providers: {
     embedding: {
@@ -265,7 +305,7 @@ Providers self-validate on construction:
 ```typescript
 // This will throw immediately with clear error message
 const kg = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   providers: {
     embedding: {
       type: 'openai',

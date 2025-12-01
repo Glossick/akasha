@@ -22,7 +22,7 @@
     "build": "tsc && node scripts/fix-esm-imports.js",
     "prepublishOnly": "npm run build",
     "test": "bun test",
-    "test:integration": "bun test src/__tests__/integration",
+    "test:integration": "bun test --timeout 60000 src/__tests__/integration",
     "test:unit": "bun test src/__tests__ --exclude integration",
     "demo": "bun run scripts/demo.ts",
     "test:script": "bun run scripts/test-integration.ts",

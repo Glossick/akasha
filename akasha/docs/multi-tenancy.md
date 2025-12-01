@@ -17,7 +17,7 @@ All entities and relationships created within a scope are tagged with that scope
 
 ```typescript
 const tenant1 = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   scope: {
     id: 'tenant-1',
     type: 'tenant',
@@ -26,7 +26,7 @@ const tenant1 = akasha({
 });
 
 const tenant2 = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   scope: {
     id: 'tenant-2',
     type: 'tenant',
@@ -128,7 +128,7 @@ You can use Akasha without a scope (scope-agnostic mode):
 
 ```typescript
 const kg = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   // No scope provided
 });
 ```
@@ -151,7 +151,7 @@ class TenantService {
   getInstance(tenantId: string): Akasha {
     if (!this.instances.has(tenantId)) {
       this.instances.set(tenantId, akasha({
-        neo4j: { /* ... */ },
+        database: { /* ... */ },
         scope: {
           id: tenantId,
           type: 'tenant',
@@ -182,7 +182,7 @@ function createUserScope(userId: string, workspaceId: string): Scope {
 }
 
 const kg = akasha({
-  neo4j: { /* ... */ },
+  database: { /* ... */ },
   scope: createUserScope('user-123', 'workspace-456'),
 });
 ```
@@ -265,7 +265,7 @@ class MultiTenantGraphRAG {
 
   async learnForTenant(tenantId: string, text: string) {
     const kg = akasha({
-      neo4j: { /* ... */ },
+      database: { /* ... */ },
       scope: this.getTenantScope(tenantId),
     });
 
@@ -281,7 +281,7 @@ class MultiTenantGraphRAG {
 
   async askTenant(tenantId: string, question: string) {
     const kg = akasha({
-      neo4j: { /* ... */ },
+      database: { /* ... */ },
       scope: this.getTenantScope(tenantId),
     });
 

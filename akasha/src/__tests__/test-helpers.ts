@@ -60,9 +60,9 @@ export function createTestConfig(overrides?: Partial<AkashaConfig>): AkashaConfi
     database: {
       type: 'neo4j',
       config: {
-        uri: 'bolt://localhost:7687',
-        user: 'neo4j',
-        password: 'password',
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
       },
     },
     providers: {
@@ -93,9 +93,9 @@ export function createAnthropicConfig(overrides?: Partial<AkashaConfig>): Akasha
     database: {
       type: 'neo4j',
       config: {
-        uri: 'bolt://localhost:7687',
-        user: 'neo4j',
-        password: 'password',
+      uri: 'bolt://localhost:7687',
+      user: 'neo4j',
+      password: 'password',
       },
     },
     providers: {
@@ -116,6 +116,55 @@ export function createAnthropicConfig(overrides?: Partial<AkashaConfig>): Akasha
     },
     ...overrides,
   };
+}
+
+/**
+ * Create database config for integration tests
+ * Supports both Neo4j and LadybugDB based on environment variables
+ */
+export function createIntegrationDatabaseConfig(): { type: 'neo4j' | 'ladybug'; config: any } {
+  // Check for LadybugDB (no external service needed)
+  if (process.env.LADYBUG_DB_PATH) {
+    return {
+      type: 'ladybug',
+      config: {
+        databasePath: process.env.LADYBUG_DB_PATH,
+      },
+    };
+  }
+  
+  // Check for Neo4j (requires external service)
+  if (process.env.NEO4J_URI && process.env.NEO4J_USER && process.env.NEO4J_PASSWORD) {
+    return {
+      type: 'neo4j',
+      config: {
+        uri: process.env.NEO4J_URI,
+        user: process.env.NEO4J_USER,
+        password: process.env.NEO4J_PASSWORD,
+      },
+    };
+  }
+  
+  // Default to LadybugDB with temp path (for local testing)
+  return {
+    type: 'ladybug',
+    config: {
+      databasePath: `/tmp/akasha-test-${Date.now()}`,
+    },
+  };
+}
+
+/**
+ * Check if integration tests should run
+ */
+export function shouldRunIntegrationTests(): boolean {
+  return !!(
+    process.env.OPENAI_API_KEY && (
+      (process.env.NEO4J_URI && process.env.NEO4J_USER && process.env.NEO4J_PASSWORD) ||
+      process.env.LADYBUG_DB_PATH ||
+      true // LadybugDB can always run (embedded)
+    )
+  );
 }
 
 /**

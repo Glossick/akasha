@@ -74,6 +74,7 @@ describe('Multi-Provider Integration Tests', () => {
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
         },
+        },
         scope,
         providers: {
           embedding: {
@@ -145,6 +146,7 @@ describe('Multi-Provider Integration Tests', () => {
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
         },
+        },
         scope,
         providers: {
           embedding: {
@@ -207,6 +209,7 @@ describe('Multi-Provider Integration Tests', () => {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
+        },
         },
         scope,
         providers: {
@@ -287,6 +290,7 @@ describe('Multi-Provider Integration Tests', () => {
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
         },
+        },
         scope: scopeOpenAI,
         providers: {
           embedding: {
@@ -320,6 +324,7 @@ describe('Multi-Provider Integration Tests', () => {
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
         },
+        },
         scope: scopeAnthropic,
         providers: {
           embedding: {
@@ -352,6 +357,7 @@ describe('Multi-Provider Integration Tests', () => {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
+        },
         },
         scope: scopeDeepSeek,
         providers: {
@@ -398,6 +404,7 @@ describe('Multi-Provider Integration Tests', () => {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
+        },
         },
         scope,
         providers: {
@@ -447,6 +454,7 @@ describe('Multi-Provider Integration Tests', () => {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
+        },
         },
         scope,
         providers: {
@@ -499,6 +507,7 @@ describe('Multi-Provider Integration Tests', () => {
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
         },
+        },
         scope,
         providers: {
           embedding: {
@@ -547,6 +556,7 @@ describe('Multi-Provider Integration Tests', () => {
     });
 
     it.skipIf(!canTestDeepSeek)('should use deepseek-reasoner for complex reasoning', async () => {
+      // Increase timeout to 60s for reasoner model (slower than regular chat models)
       const scope: Scope = {
         id: `test-deepseek-reasoner-${Date.now()}`,
         type: 'test',
@@ -561,6 +571,7 @@ describe('Multi-Provider Integration Tests', () => {
           uri: process.env.NEO4J_URI!,
           user: process.env.NEO4J_USER!,
           password: process.env.NEO4J_PASSWORD!,
+        },
         },
         scope,
         providers: {
@@ -606,11 +617,12 @@ describe('Multi-Provider Integration Tests', () => {
       expect(() => {
         akasha({
           database: {
-          type: 'neo4j',
-          config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
           },
         } as any);
       }).toThrow('Provider configuration is required');
@@ -620,11 +632,12 @@ describe('Multi-Provider Integration Tests', () => {
       expect(() => {
         akasha({
           database: {
-          type: 'neo4j',
-          config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
           },
           providers: {
             embedding: {
@@ -644,11 +657,12 @@ describe('Multi-Provider Integration Tests', () => {
       expect(() => {
         akasha({
           database: {
-          type: 'neo4j',
-          config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+            type: 'neo4j',
+            config: {
+              uri: 'bolt://localhost:7687',
+              user: 'neo4j',
+              password: 'password',
+            },
           },
           providers: {
             embedding: {

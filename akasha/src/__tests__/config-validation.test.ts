@@ -9,9 +9,9 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -48,10 +48,10 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
-            database: 'test-db',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          database: 'test-db',
           },
         },
         providers: {
@@ -80,14 +80,78 @@ describe('Akasha - Configuration Validation', () => {
       expect(result.errors.length).toBe(0);
     });
 
+    it('should validate LadybugDB configuration', () => {
+      const config: AkashaConfig = {
+        database: {
+          type: 'ladybug',
+          config: {
+            databasePath: '/tmp/test-ladybug-db',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'sk-test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'sk-test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+      };
+
+      const result = Akasha.validateConfig(config);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors.length).toBe(0);
+    });
+
+    it('should fail validation for LadybugDB without databasePath', () => {
+      const config = {
+        database: {
+          type: 'ladybug',
+          config: {
+            // Missing databasePath
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'openai',
+            config: {
+              apiKey: 'sk-test-key',
+              model: 'text-embedding-3-small',
+            },
+          },
+          llm: {
+            type: 'openai',
+            config: {
+              apiKey: 'sk-test-key',
+              model: 'gpt-4',
+            },
+          },
+        },
+      } as any;
+
+      const result = Akasha.validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.field === 'database.config.databasePath')).toBe(true);
+    });
+
     it('should fail validation without providers configuration', () => {
       const config = {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
       } as any;
@@ -103,9 +167,9 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -137,8 +201,8 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            user: 'neo4j',
-            password: 'password',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -165,9 +229,9 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -193,9 +257,9 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -221,9 +285,9 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -253,9 +317,9 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -281,9 +345,9 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -304,14 +368,43 @@ describe('Akasha - Configuration Validation', () => {
       expect(result.errors.some(e => e.field === 'providers.embedding.type')).toBe(true);
     });
 
+    it('should fail validation for deepseek embedding provider (not supported)', () => {
+      const config = {
+        database: {
+          type: 'neo4j',
+          config: {
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
+          },
+        },
+        providers: {
+          embedding: {
+            type: 'deepseek',
+            config: { apiKey: 'sk-test-key', model: 'some-model' },
+          },
+          llm: {
+            type: 'openai',
+            config: { apiKey: 'sk-test-key', model: 'gpt-4' },
+          },
+        },
+      } as any;
+
+      const result = Akasha.validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.field === 'providers.embedding.type')).toBe(true);
+      expect(result.errors.some(e => e.message.includes('openai'))).toBe(true);
+    });
+
     it('should fail validation for invalid LLM provider type', () => {
       const config = {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'bolt://localhost:7687',
-            user: 'neo4j',
-            password: 'password',
+          uri: 'bolt://localhost:7687',
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -337,9 +430,9 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: 'http://localhost:7687',  // Non-standard URI
-            user: 'neo4j',
-            password: 'password',
+          uri: 'http://localhost:7687',  // Non-standard URI
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {
@@ -368,9 +461,9 @@ describe('Akasha - Configuration Validation', () => {
         database: {
           type: 'neo4j',
           config: {
-            uri: '',  // Invalid: empty string
-            user: 'neo4j',
-            password: 'password',
+          uri: '',  // Invalid: empty string
+          user: 'neo4j',
+          password: 'password',
           },
         },
         providers: {

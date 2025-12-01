@@ -14,8 +14,19 @@ describe('Neo4j Vector Search Filtering', () => {
     capturedQuery = '';
     capturedParams = {};
 
+    // Return a mock record so vector index path is taken (not fallback)
     mockResult = {
-      records: [],
+      records: [
+        {
+          get: (key: string) => {
+            if (key === 'id') return { toString: () => '1' };
+            if (key === 'labels') return ['Entity'];
+            if (key === 'properties') return { name: 'Test', _similarity: 0.8 };
+            if (key === 'score') return 0.8;
+            return null;
+          },
+        },
+      ],
     };
 
     mockSession = {
@@ -274,6 +285,199 @@ describe('Neo4j Vector Search Filtering', () => {
       expect(capturedQuery).toMatch(/scopeId = \$scopeId/);
       expect(capturedQuery).toContain('WHERE');
       expect(capturedQuery).toContain('RETURN');
+    });
+  });
+
+  describe('K parameter calculation for filtering', () => {
+    describe('findEntitiesByVector', () => {
+      it('should request higher k when scopeId filter is present', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findEntitiesByVector(
+          queryEmbedding,
+          10, // limit
+          0.7,
+          'test-scope' // scopeId filter
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        // k should be >= limit * 5 or >= 50 when filters are present
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBeGreaterThanOrEqual(50); // At least 50, or 10 * 5 = 50
+        expect(kValue).toBeGreaterThanOrEqual(10 * 5); // At least 5x the limit
+        // limit should remain the same
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+      });
+
+      it('should request higher k when contexts filter is present', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findEntitiesByVector(
+          queryEmbedding,
+          10, // limit
+          0.7,
+          undefined, // no scopeId
+          ['context-1'] // contexts filter
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBeGreaterThanOrEqual(50);
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+      });
+
+      it('should request higher k when validAt filter is present', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findEntitiesByVector(
+          queryEmbedding,
+          10, // limit
+          0.7,
+          undefined, // no scopeId
+          undefined, // no contexts
+          '2024-06-01T00:00:00Z' // validAt filter
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBeGreaterThanOrEqual(50);
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+      });
+
+      it('should request higher k when multiple filters are present', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findEntitiesByVector(
+          queryEmbedding,
+          10, // limit
+          0.7,
+          'test-scope', // scopeId
+          ['context-1'], // contexts
+          '2024-06-01T00:00:00Z' // validAt
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBeGreaterThanOrEqual(50);
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+      });
+
+      it('should use normal k when no filters are present', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findEntitiesByVector(
+          queryEmbedding,
+          10, // limit
+          0.7
+          // No filters
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        // k should equal limit when no filters
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBe(10);
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+      });
+
+      it('should apply filters after requesting higher k', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findEntitiesByVector(
+          queryEmbedding,
+          10, // limit
+          0.7,
+          'test-scope' // scopeId filter
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        // Verify k is higher
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBeGreaterThanOrEqual(50);
+        // Verify limit is still the original value
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+        // Verify WHERE clause is present (filtering happens after getting k results)
+        expect(capturedQuery).toContain('WHERE');
+        expect(capturedQuery).toMatch(/scopeId = \$scopeId/);
+      });
+    });
+
+    describe('findDocumentsByVector', () => {
+      it('should request higher k when scopeId filter is present', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findDocumentsByVector(
+          queryEmbedding,
+          10, // limit
+          0.7,
+          'test-scope' // scopeId filter
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBeGreaterThanOrEqual(50);
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+      });
+
+      it('should request higher k when contexts filter is present', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findDocumentsByVector(
+          queryEmbedding,
+          10, // limit
+          0.7,
+          undefined, // no scopeId
+          ['context-1'] // contexts filter
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBeGreaterThanOrEqual(50);
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+      });
+
+      it('should request higher k when validAt filter is present', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findDocumentsByVector(
+          queryEmbedding,
+          10, // limit
+          0.7,
+          undefined, // no scopeId
+          undefined, // no contexts
+          '2024-06-01T00:00:00Z' // validAt filter
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBeGreaterThanOrEqual(50);
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+      });
+
+      it('should use normal k when no filters are present', async () => {
+        const queryEmbedding = new Array(1536).fill(0.5);
+        
+        await neo4jService.findDocumentsByVector(
+          queryEmbedding,
+          10, // limit
+          0.7
+          // No filters
+        );
+
+        expect(mockSession.run).toHaveBeenCalled();
+        const kValue = capturedParams.k?.toNumber ? capturedParams.k.toNumber() : capturedParams.k;
+        expect(kValue).toBe(10);
+        const limitValue = capturedParams.limit?.toNumber ? capturedParams.limit.toNumber() : capturedParams.limit;
+        expect(limitValue).toBe(10);
+      });
     });
   });
 });

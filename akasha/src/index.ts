@@ -3,13 +3,32 @@
  * 
  * @example
  * ```typescript
- * import { akasha } from 'akasha';
+ * import { akasha } from '@glossick/akasha';
  * 
  * const kg = akasha({
- *   neo4j: {
- *     uri: 'bolt://localhost:7687',
- *     user: 'neo4j',
- *     password: 'password',
+ *   database: {
+ *     type: 'neo4j',
+ *     config: {
+ *       uri: 'bolt://localhost:7687',
+ *       user: 'neo4j',
+ *       password: 'password',
+ *     },
+ *   },
+ *   providers: {
+ *     embedding: {
+ *       type: 'openai',
+ *       config: {
+ *         apiKey: process.env.OPENAI_API_KEY!,
+ *         model: 'text-embedding-3-small',
+ *       },
+ *     },
+ *     llm: {
+ *       type: 'openai',
+ *       config: {
+ *         apiKey: process.env.OPENAI_API_KEY!,
+ *         model: 'gpt-4',
+ *       },
+ *     },
  *   },
  *   scope: {
  *     id: 'tenant-1',
@@ -18,7 +37,7 @@
  *   },
  * });
  * 
- * await kg.init();
+ * await kg.initialize();
  * const result = await kg.ask('What is the relationship between X and Y?');
  * ```
  */
@@ -33,6 +52,7 @@ export type {
   DatabaseConfig,
   Neo4jConfig,
   KuzuConfig,
+  LadybugConfig,
   QueryOptions,
   QueryStrategy,
   GraphRAGQuery,

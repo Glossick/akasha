@@ -48,9 +48,9 @@ describe('Akasha - Health Check', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       scope,
@@ -114,9 +114,9 @@ describe('Akasha - Health Check', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       scope,
@@ -175,9 +175,9 @@ describe('Akasha - Health Check', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       scope,
@@ -241,9 +241,9 @@ describe('Akasha - Health Check', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       scope,
@@ -301,9 +301,9 @@ describe('Akasha - Health Check', () => {
       database: {
         type: 'neo4j',
         config: {
-          uri: 'bolt://localhost:7687',
-          user: 'neo4j',
-          password: 'password',
+        uri: 'bolt://localhost:7687',
+        user: 'neo4j',
+        password: 'password',
         },
       },
       scope,

@@ -35,6 +35,7 @@ import { generateEntityText } from './utils/entity-embedding';
 import { generateExtractionPrompt } from './utils/prompt-template';
 import { scrubEmbeddings } from './utils/scrub-embeddings';
 import { generateSystemMetadata } from './utils/system-metadata';
+import { scrubEntitiesEmbeddings, scrubRelationshipsEmbeddings } from './utils/scrub-embeddings';
 import { randomUUID } from 'crypto';
 import { EventEmitter } from './events/event-emitter';
 import type { AkashaEvent, EventType } from './events/types';
@@ -103,28 +104,28 @@ export class Akasha {
       if (config.database.type === 'neo4j') {
         const dbConfig = config.database.config;
         if (!dbConfig.uri || typeof dbConfig.uri !== 'string' || dbConfig.uri.trim() === '') {
-          errors.push({
+        errors.push({
             field: 'database.config.uri',
-            message: 'Neo4j URI is required and must be a non-empty string',
-          });
+          message: 'Neo4j URI is required and must be a non-empty string',
+        });
         } else if (!dbConfig.uri.startsWith('bolt://') && !dbConfig.uri.startsWith('neo4j://')) {
-          warnings.push({
+        warnings.push({
             field: 'database.config.uri',
-            message: 'Neo4j URI should start with "bolt://" or "neo4j://"',
-          });
-        }
+          message: 'Neo4j URI should start with "bolt://" or "neo4j://"',
+        });
+      }
 
         if (!dbConfig.user || typeof dbConfig.user !== 'string' || dbConfig.user.trim() === '') {
-          errors.push({
+        errors.push({
             field: 'database.config.user',
-            message: 'Neo4j user is required and must be a non-empty string',
-          });
-        }
+          message: 'Neo4j user is required and must be a non-empty string',
+        });
+      }
 
         if (!dbConfig.password || typeof dbConfig.password !== 'string' || dbConfig.password.trim() === '') {
-          errors.push({
+        errors.push({
             field: 'database.config.password',
-            message: 'Neo4j password is required and must be a non-empty string',
+          message: 'Neo4j password is required and must be a non-empty string',
           });
         }
       } else if (config.database.type === 'kuzu') {
@@ -135,10 +136,18 @@ export class Akasha {
             message: 'Kuzu database path is required and must be a non-empty string',
           });
         }
+      } else if (config.database.type === 'ladybug') {
+        const dbConfig = config.database.config;
+        if (!dbConfig.databasePath || typeof dbConfig.databasePath !== 'string' || dbConfig.databasePath.trim() === '') {
+          errors.push({
+            field: 'database.config.databasePath',
+            message: 'LadybugDB database path is required and must be a non-empty string',
+          });
+        }
       } else {
         errors.push({
           field: 'database.type',
-          message: `Unknown database type: "${(config.database as any).type}". Must be one of: neo4j, kuzu`,
+          message: `Unknown database type: "${(config.database as any).type}". Must be one of: neo4j, kuzu, ladybug`,
         });
       }
     }
@@ -156,10 +165,10 @@ export class Akasha {
         const embeddingConfig = config.providers.embedding.config;
         
         // Validate type
-        if (!['openai', 'deepseek'].includes(embeddingType)) {
+        if (!['openai'].includes(embeddingType)) {
           errors.push({
             field: 'providers.embedding.type',
-            message: `Invalid embedding provider type: "${embeddingType}". Must be one of: openai, deepseek`,
+            message: `Invalid embedding provider type: "${embeddingType}". Must be one of: openai`,
           });
         }
         
@@ -357,8 +366,8 @@ export class Akasha {
     const limit = options?.limit ? Math.floor(options.limit) : 50;
     const scopeId = this.scope?.id;
     const strategy = options?.strategy || 'both'; // Default to 'both'
-    // Default similarity threshold: 0.7 for better relevance (was 0.5, too permissive)
-    const similarityThreshold = options?.similarityThreshold ?? 0.7;
+    // Default similarity threshold: 0.5 for better recall (0.7 was too restrictive, filtering out relevant results)
+    const similarityThreshold = options?.similarityThreshold ?? 0.5;
 
     const searchStartTime = Date.now();
     const queryEmbedding = await this.embeddingProvider.generateEmbedding(query);
@@ -1452,7 +1461,13 @@ export class Akasha {
     const scopeId = this.scope?.id;
     const limit = options?.limit ?? 100;
     const offset = options?.offset ?? 0;
-    return await this.databaseProvider.listEntities(options?.label, limit, offset, scopeId);
+    const entities = await this.databaseProvider.listEntities(options?.label, limit, offset, scopeId);
+    
+    // Filter embeddings based on includeEmbeddings option (default: false)
+    if (options?.includeEmbeddings !== true) {
+      return scrubEntitiesEmbeddings(entities);
+    }
+    return entities;
   }
 
   /**
@@ -1462,7 +1477,7 @@ export class Akasha {
     const scopeId = this.scope?.id;
     const limit = options?.limit ?? 100;
     const offset = options?.offset ?? 0;
-    return await this.databaseProvider.listRelationships(
+    const relationships = await this.databaseProvider.listRelationships(
       options?.type,
       options?.fromId,
       options?.toId,
@@ -1470,6 +1485,12 @@ export class Akasha {
       offset,
       scopeId
     );
+    
+    // Filter embeddings based on includeEmbeddings option (default: false)
+    if (options?.includeEmbeddings !== true) {
+      return scrubRelationshipsEmbeddings(relationships);
+    }
+    return relationships;
   }
 
   /**
@@ -1479,6 +1500,15 @@ export class Akasha {
     const scopeId = this.scope?.id;
     const limit = options?.limit ?? 100;
     const offset = options?.offset ?? 0;
-    return await this.databaseProvider.listDocuments(limit, offset, scopeId);
+    const documents = await this.databaseProvider.listDocuments(limit, offset, scopeId);
+    
+    // Filter embeddings based on includeEmbeddings option (default: false)
+    if (options?.includeEmbeddings !== true) {
+      return documents.map(doc => {
+        const { embedding, ...properties } = doc.properties;
+        return { ...doc, properties };
+      });
+    }
+    return documents;
   }
 }

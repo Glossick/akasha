@@ -115,7 +115,7 @@ export interface EventsConfig {
 /**
  * Database type identifier
  */
-export type DatabaseType = 'neo4j' | 'kuzu';
+export type DatabaseType = 'neo4j' | 'ladybug';
 
 /**
  * Neo4j database configuration
@@ -128,10 +128,10 @@ export interface Neo4jConfig {
 }
 
 /**
- * Kuzu database configuration
+ * LadybugDB database configuration
  */
-export interface KuzuConfig {
-  databasePath: string; // Kuzu uses file path, not connection string
+export interface LadybugConfig {
+  databasePath: string; // LadybugDB uses file path, not connection string
 }
 
 /**
@@ -139,7 +139,7 @@ export interface KuzuConfig {
  */
 export type DatabaseConfig = 
   | { type: 'neo4j'; config: Neo4jConfig }
-  | { type: 'kuzu'; config: KuzuConfig };
+  | { type: 'ladybug'; config: LadybugConfig };
 
 /**
  * Akasha configuration
