@@ -128,14 +128,6 @@ export class Akasha {
           message: 'Neo4j password is required and must be a non-empty string',
           });
         }
-      } else if (config.database.type === 'kuzu') {
-        const dbConfig = config.database.config;
-        if (!dbConfig.databasePath || typeof dbConfig.databasePath !== 'string' || dbConfig.databasePath.trim() === '') {
-          errors.push({
-            field: 'database.config.databasePath',
-            message: 'Kuzu database path is required and must be a non-empty string',
-          });
-        }
       } else if (config.database.type === 'ladybug') {
         const dbConfig = config.database.config;
         if (!dbConfig.databasePath || typeof dbConfig.databasePath !== 'string' || dbConfig.databasePath.trim() === '') {

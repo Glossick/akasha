@@ -70,8 +70,11 @@ export class LadybugProvider implements DatabaseProvider {
           PRIMARY KEY(id)
         )
       `);
-      await result.getAll();
-      result.close();
+      const results = Array.isArray(result) ? result : [result];
+      for (const res of results) {
+        await res.getAll();
+        res.close();
+      }
     } catch (e: any) {
       // Table might already exist - that's fine
       if (!e.message?.includes('already exists') && !e.message?.includes('duplicate')) {
@@ -94,8 +97,11 @@ export class LadybugProvider implements DatabaseProvider {
           PRIMARY KEY(id)
         )
       `);
-      await result.getAll();
-      result.close();
+      const results = Array.isArray(result) ? result : [result];
+      for (const res of results) {
+        await res.getAll();
+        res.close();
+      }
     } catch (e: any) {
       if (!e.message?.includes('already exists') && !e.message?.includes('duplicate')) {
         console.warn('Document table creation:', e.message);
@@ -116,8 +122,11 @@ export class LadybugProvider implements DatabaseProvider {
           _validTo STRING
         )
       `);
-      await result.getAll();
-      result.close();
+      const results = Array.isArray(result) ? result : [result];
+      for (const res of results) {
+        await res.getAll();
+        res.close();
+      }
     } catch (e: any) {
       if (!e.message?.includes('already exists') && !e.message?.includes('duplicate')) {
         console.warn('Relationship table creation:', e.message);
@@ -133,8 +142,11 @@ export class LadybugProvider implements DatabaseProvider {
           scopeId STRING
         )
       `);
-      await result.getAll();
-      result.close();
+      const results = Array.isArray(result) ? result : [result];
+      for (const res of results) {
+        await res.getAll();
+        res.close();
+      }
     } catch (e: any) {
       if (!e.message?.includes('already exists') && !e.message?.includes('duplicate')) {
         console.warn('ContainsEntity table creation:', e.message);
@@ -323,8 +335,10 @@ export class LadybugProvider implements DatabaseProvider {
           const rows = await res.getAll();
           
           for (const row of rows) {
-            const node = row.d || row;
-            const storedEmbedding = node.embedding as number[] | undefined;
+            const node = (row as any).d || row;
+            const storedEmbedding = (node && typeof node === 'object' && 'embedding' in node) 
+              ? (node.embedding as number[] | undefined)
+              : undefined;
 
             if (Array.isArray(storedEmbedding) && storedEmbedding.length > 0) {
               const similarity = this.cosineSimilarity(queryEmbedding, storedEmbedding);
@@ -338,15 +352,22 @@ export class LadybugProvider implements DatabaseProvider {
                   }
                 }
                 
-                const docId = (node.id as string) || this.nodeIdToString(node._id || node.id);
+                const nodeId = (node && typeof node === 'object' && 'id' in node) ? (node.id as string) : undefined;
+                const node_id = (node && typeof node === 'object' && '_id' in node) ? (node._id as any) : undefined;
+                const docId = nodeId || this.nodeIdToString(node_id || nodeId);
+                
+                // Ensure required Document properties
+                const docProperties: Document['properties'] = {
+                  text: (properties.text as string) || '',
+                  scopeId: (properties.scopeId as string) || '',
+                  ...properties,
+                  _similarity: similarity,
+                };
                 
                 documentsWithSimilarity.push({
                   id: docId,
                   label: 'Document',
-                  properties: {
-                    ...properties,
-                    _similarity: similarity,
-                  },
+                  properties: docProperties,
                   similarity,
                 });
               }
@@ -466,33 +487,37 @@ export class LadybugProvider implements DatabaseProvider {
         res.close();
 
         for (const row of rows) {
+          const rowAny = row as any;
           // Extract from entity
-          const fromId = row.fromId || (row.fromNode?.id as string) || '';
+          const fromId = String(rowAny.fromId || (rowAny.fromNode?.id) || '');
           if (fromId && !entitiesMap.has(fromId)) {
-            entitiesMap.set(fromId, this.extractEntityFromResult({ e: row.fromNode || row }));
+            entitiesMap.set(fromId, this.extractEntityFromResult({ e: rowAny.fromNode || row }));
           }
 
           // Extract to entity
-          const toId = row.toId || (row.toNode?.id as string) || '';
+          const toId = String(rowAny.toId || (rowAny.toNode?.id) || '');
           if (toId && !entitiesMap.has(toId)) {
-            entitiesMap.set(toId, this.extractEntityFromResult({ e: row.toNode || row }));
+            entitiesMap.set(toId, this.extractEntityFromResult({ e: rowAny.toNode || row }));
           }
 
           // Extract relationship
-          const relId = row.relId || (row.relNode?.id as string) || '';
+          const relId = String(rowAny.relId || (rowAny.relNode?.id) || '');
           if (relId && !relationshipsMap.has(relId)) {
             // Extract relationship properties
             const relProps: Record<string, unknown> = {};
-            const relNode = row.relNode || {};
-            for (const [key, value] of Object.entries(relNode)) {
-              if (key !== '_id' && key !== '_label' && key !== 'id' && key !== 'type') {
-                relProps[key] = value;
+            const relNode = rowAny.relNode || {};
+            if (relNode && typeof relNode === 'object') {
+              for (const [key, value] of Object.entries(relNode)) {
+                if (key !== '_id' && key !== '_label' && key !== 'id' && key !== 'type') {
+                  relProps[key] = value;
+                }
               }
             }
             
+            const relType = rowAny.relType || (relNode && typeof relNode === 'object' && 'type' in relNode ? (relNode.type as string) : '') || 'Relationship';
             relationshipsMap.set(relId, {
               id: relId,
-              type: row.relType || (relNode.type as string) || 'Relationship',
+              type: relType,
               from: fromId,
               to: toId,
               properties: relProps,
@@ -1255,12 +1280,19 @@ export class LadybugProvider implements DatabaseProvider {
     }
     
     // Use the id from properties if available, otherwise use NodeID
-    const id = (node.id as string) || nodeId;
+    const id = (node && typeof node === 'object' && 'id' in node) ? (node.id as string) : nodeId;
+    
+    // Ensure required Document properties
+    const docProperties: Document['properties'] = {
+      text: (properties.text as string) || '',
+      scopeId: (properties.scopeId as string) || '',
+      ...properties,
+    };
     
     return {
       id,
       label: 'Document',
-      properties,
+      properties: docProperties,
     };
   }
 
@@ -1272,9 +1304,8 @@ export class LadybugProvider implements DatabaseProvider {
     await this.ensureSchema();
 
     // Generate ID if not provided
-    const docId = document.properties.id 
-      ? String(document.properties.id)
-      : `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Note: Document properties don't have an 'id' field - the id is on the Document object itself
+    const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Prepare properties with embedding
     const props: Record<string, unknown> = {
