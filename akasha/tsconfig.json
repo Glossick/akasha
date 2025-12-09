@@ -26,7 +26,8 @@
     
     // Module system
     "allowSyntheticDefaultImports": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    
   },
   "include": ["src/**/*"],
   "exclude": ["src/__tests__/**/*", "node_modules", "dist"]
