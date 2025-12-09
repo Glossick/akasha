@@ -1,6 +1,6 @@
 {
   "name": "@glossick/akasha",
-  "version": "0.9.22",
+  "version": "0.9.23",
   "description": "A minimal, developer-friendly GraphRAG library with multi-tenant support",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,7 +20,7 @@
     "docs"
   ],
   "scripts": {
-    "build": "tsc && node scripts/fix-esm-imports.js && node scripts/bundle-lbug.cjs",
+    "build": "tsc && node scripts/fix-esm-imports.js",
     "prepublishOnly": "bun run build",
     "postinstall": "bun scripts/postinstall-verify-lbug.cjs",
     "test": "bun test",
@@ -53,18 +53,18 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "lbug": "0.12.2",
     "neo4j-driver": "^6.0.1",
     "openai": "^6.8.1"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^20.0.0",
-    "lbug": "0.12.2",
     "typescript": "^5.0.0"
   },
-  "akasha": {
-    "bundledLbugVersion": "0.12.2"
-  },
+  "trustedDependencies": [
+    "lbug"
+  ],
   "peerDependencies": {
     "typescript": "^5.0.0"
   }

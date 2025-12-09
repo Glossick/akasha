@@ -1,4 +1,4 @@
-import { Database, Connection, type QueryResult } from '../../../vendor/lbug/index.mjs';
+import { Database, Connection, type QueryResult } from 'lbug';
 import type { DatabaseProvider } from './interfaces';
 import type { Entity, Relationship, Document, DeleteResult } from '../../../types';
 
